@@ -9,6 +9,8 @@ as.sunburstDF <- function(cl.df,
                           valueCol = NULL, 
                           rootname="total") {
   
+  ## REQUIRED LIBRARIES LOADED GLOBALLY
+  
   ## select columns for plotting (levels)
   group_columns <- function(grouping) {
     list(id = paste0(grouping, "_id"),

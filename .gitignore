@@ -1,7 +1,9 @@
 .Rproj.user
 .Rhistory
 .RData
+.Rprofile
 .Ruserdata
 sandbox*
 *tmp*
 *label.txt
+renv/*

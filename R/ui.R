@@ -1,14 +1,11 @@
 suppressPackageStartupMessages({
   library(shiny)
   library(dplyr)
-  library(feather)
+  library(tidyr)
   library(DT)
-  library(rbokeh)
   library(shinydashboard)
   library(plotly)
   library(shinycssloaders)
-  #library(shinyjs)           # Not currently used
-  #library(googleAnalyticsR)  # Some errors in dependencies if I include this, but also not needed yet
 })
 
 # Define UI for application that draws a histogram

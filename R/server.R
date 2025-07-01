@@ -1,16 +1,5 @@
 suppressPackageStartupMessages({
-  library(dplyr)
-  library(tidyr)
-  library(DT)
-  library(feather)
-  library(ggplot2)
-  library(ggbeeswarm)
-  library(rbokeh)
-  library(scrattch.io)
-  library(shiny)
-  library(UpSetR)
-  library(anndata)
-  library(vroom)
+  # NOTE: ALL LIBRARIES LOADED FROM ui.R
 })
 options(stringsAsFactors = F)
 options(shiny.maxRequestSize = 50 * 1024^2)  # For uploading files
@@ -646,9 +635,9 @@ server <- function(input, output, session) {
     } else if(db_type == "tome") {
       
       all_genes <- all_genes()
-      checked_top10_genes <- scrattch.vis::check_genes(genes = top10_genes, 
-                                                       gene_reference = all_genes,
-                                                       result = "both")
+      checked_top10_genes <- check_genes(genes = top10_genes, 
+                                         gene_reference = all_genes,
+                                         result = "both")
       
       cat("checked top 10 genes tome \n")
       # print(checked_top10_genes)

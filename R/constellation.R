@@ -69,15 +69,17 @@ plot_constellation <- function (knn.cl.df,
 ) {
   
   library(gridExtra)
-  library(sna)
-  library(Hmisc)
-  library(reshape2)
-  library(ggforce)
-  library(dplyr)
-  library(plotly) # Add plotly to the function's libraries
+  library(cowplot)
   if(label_repel == TRUE) { # Only load ggrepel if needed
     library(ggrepel)
   }
+  
+  #library(sna)   # Commented libraries either loaded globally or not needed
+  #library(Hmisc)
+  #library(reshape2)
+  #library(ggforce)
+  #library(dplyr)
+  #library(plotly)
   
   st=prefix
   if(!is.null(out.dir)){

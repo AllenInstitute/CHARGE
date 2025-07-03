@@ -231,7 +231,22 @@ server <- function(input, output, session) {
     
     # THIS IS WHERE THE DATA GETS READ IN.  THERE SHOULD PROBABLY BE MORE CHECKS OF PROPER FORMAT.
     if(file.exists(file)){
-      objs <- load(file)
+      
+      if(substr(file,1,2)=="s3"){
+        ## READ FROM s3 bucket
+        file2    = substr(file,6,10000)
+        file2    = strsplit(file2,"/")[[1]]
+        bucket   = file2[1]
+        filename = paste(file2[2:length(file2)],collapse="/")
+        #board_register_s3(name = "CHARGE_board", bucket = bucket, versioned = FALSE)
+        #objs     = pin_read(name = filename, board = "CHARGE_board", type="rds")
+        
+        objs <- s3readRDS(object = filename,bucket = bucket)
+        
+      } else {
+        ## READ LOCALLY... THIS MIGHT NOT WORK
+        objs <- load(file)
+      }
       eval(parse(text=paste0("data=list(",paste(objs,collapse=","),")")))  
       names(data) <- objs
       return(data)

@@ -6,8 +6,7 @@ suppressPackageStartupMessages({
   library(shinydashboard)
   library(plotly)
   library(shinycssloaders)
-  #library(pins)
-  library(aws.s3) 
+  library(aws.s3)  # For s3 functionality
 })
 
 # Define UI for application that draws a histogram

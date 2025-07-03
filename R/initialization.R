@@ -16,7 +16,7 @@ levels = c("Cell type classification"))
 #... where is the cell x annotation table?
 # Note that this can be a csv file, a feather directory, or a scrattch.taxonomy h5ad file.  It can also be local or on the web.
 table_locations <- c(
-  "s3://pga-genomics-wg-802451596237-us-west-2/CHARGE_data/test_CHARGE.RData" #../sandbox/test_CHARGE.RData"  # 
+  "s3://pga-genomics-wg-802451596237-us-west-2/CHARGE_data/test_CHARGE.RData" #"../sandbox/test_CHARGE.RData"  # 
 )
 
 

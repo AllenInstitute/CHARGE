@@ -2,7 +2,7 @@ suppressPackageStartupMessages({
   # NOTE: ALL LIBRARIES LOADED FROM ui.R
 })
 options(stringsAsFactors = F)
-options(shiny.maxRequestSize = 50 * 1024^2)  # For uploading files
+options(shiny.maxRequestSize = 1 * 1024^3)  # 1GB max For uploading files
 
 source("initialization.R")
 source("sunburst.R")
@@ -606,7 +606,7 @@ server <- function(input, output, session) {
   
   output$download_table <- downloadHandler(
     
-    filename = function() { paste0(input$g1_groups,"_vs_",input$g2_groups,".csv") },
+    filename = function() { paste0(input$background_type,"_results.csv") },
     content = function(file) {
       write.csv(calculate_de_genes()[input$de_table_rows_all,],file)
     }

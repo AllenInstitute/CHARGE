@@ -8,6 +8,8 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
   hierarchy    <- data$hierarchy
   cluster_info <- data$cluster_info
   level        <- input$hierarchy_level
+  means        <- data$means
+  props        <- data$props
 	
 	## Update g2_ids depending on the requested analysis
 	if(input$background_type=="Foreground vs. all other types"){
@@ -66,20 +68,19 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
 	g1_means <- log2(g1_sums1/g1_n+1)
   g2_means <- log2(g2_sums1/g2_n+1)
 	
-	# Calculate differnetial gene score based on mean and proportions from Sten Linnarsson's group
-	# E[i,j] = ((f[i,j] + epsilon_1)/(f[i,j_hat] + epsilon_1))*((mu[i,j] + epsilon_2)/(mu[i,j_hat] + epsilon_2))
-    #where f(i,j) is the fraction of non-zero expression values in the cluster and f(i,j_hat) is the fraction of non-zero expression values for cells not in the cluster. Similarly, mu(i,j) is the mean expression in the cluster and mu(i,j_hat) is the mean expression for cells not in the cluster. Small constants are added to prevent the enrichment score from going to infinity as the mean or non-zero fractions go to zero (we use epsilon_1 = 0.1 and epsilon_2 = 0.01). This formula captures both enrichment in terms of levels (mu) and in terms of fraction expressing cells (f). There is no naturall cutoff, so we usually simply look at the top ten genes, but of course you could compute a null distribution using shuffled data and get a P value.
-	epsilon_1 = 0.1
-	epsilon_2 = 0.01
-	meanAndPropScore <- log2(((g1_props + epsilon_1)/(g2_props + epsilon_1))*
-	  ((g1_means + epsilon_2)/(g2_means + epsilon_2)))
+  # Calculate differnetial gene score based on mean and proportions from Sten Linnarsson's group
+  # E[i,j] = ((f[i,j] + epsilon_1)/(f[i,j_hat] + epsilon_1))*((mu[i,j] + epsilon_2)/(mu[i,j_hat] + epsilon_2))
+  #where f(i,j) is the fraction of non-zero expression values in the cluster and f(i,j_hat) is the fraction of non-zero expression values for cells not in the cluster. Similarly, mu(i,j) is the mean expression in the cluster and mu(i,j_hat) is the mean expression for cells not in the cluster. Small constants are added to prevent the enrichment score from going to infinity as the mean or non-zero fractions go to zero (we use epsilon_1 = 0.1 and epsilon_2 = 0.01). This formula captures both enrichment in terms of levels (mu) and in terms of fraction expressing cells (f). There is no naturall cutoff, so we usually simply look at the top ten genes, but of course you could compute a null distribution using shuffled data and get a P value.
+  epsilon_1 = 0.1
+  epsilon_2 = 0.01
+  propMeanScore <- log2(((g1_props + epsilon_1)/(g2_props + epsilon_1))*
+                                ((g1_means + epsilon_2)/(g2_means + epsilon_2)))
 
-	
 	# Choose top DEX genes based on difference in proportion
 	output <- data.frame(gene = all_genes, 
 	                     prop_diff     = round(g1_props - g2_props,5), 
 	                     log2_FC       = round(g1_means - g2_means,3),
-	                     propMeanScore = round(meanAndPropScore,3),
+	                     propMeanScore = round(propMeanScore,3),
 	                     gr1_prop = round(g1_props,3),
 	                     gr1_mean = round(g1_means,3),
 	                     gr2_prop = round(g2_props,3), 
@@ -88,13 +89,34 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
 	
 	# Hard-coded filters (could be added as input later)
 	meanSum       = 1
-	absPropDiff   = 0.2
+	absPropDiff   = 0.1
 	
 	# Define the output table
 	output <- output %>%
 	  filter(abs(prop_diff) > absPropDiff) %>%
 	  filter(gr1_mean + gr2_mean > meanSum) %>%
 	  arrange(-prop_diff)
+	
+	##############################
+	## Add additional statistics for the subset of genes still included
+	
+	genesUse = output$gene
+	
+
+	# Calculate the ranked biserial correlation (as a metric for specificity)
+	# To get a score that reflects both the purity of the groups and the direction of the sorting (e.g., A's before B's), we use the Rank Biserial Correlation Coefficient (r_b), which is a non-parametric measure of effect size for a two-group ranking. It quantifies how well a binary classification (like being in group A or B) predicts the rank order of the items.
+	datIn <- cbind(means[genesUse, c(g1_ids,g2_ids)],props[genesUse, c(g1_ids,g2_ids)])
+	rank_biserial_corr <- apply(datIn,1,score_from_ranks_wrapper,
+	                            c(rep("A",length(g1_ids)),rep("B",length(g2_ids))))
+	
+	# Calculate the overlap coefficient. A formal statistical metric for quantifying the overlap between two distributions is the overlapping coefficient (OVL). This measures the area of intersection between the probability density functions of two distributions. A low OVL value indicates a high degree of separation between the groups, while a high value means they are largely indistinguishable. The value of OVL ranges from 0 (no overlap) to 1 (complete overlap). This is a general measure of separation
+	# In this case we'll take the average value when running this test on means and proportions
+	overlap_coefficient <- apply(datIn,1,overlap_coefficient_wrapper,
+	                             c(rep("A",length(g1_ids)),rep("B",length(g2_ids))))
+	
+	## Add the new statistics and reorder so they show up earlier
+	output = cbind(output, rank_biserial_corr, overlap_coefficient)
+	output = output[,c(1:4,7:10,5:6)]
 	
 	## Read gene categories (from function in separate file)
 	source("read_gene_lists.r", local=TRUE)
@@ -188,7 +210,98 @@ find_trajectory_genes <- function(data, g1_ids) {
   # Return the table
   output
   
-  
-  
 }
+
+
+############################
+# HELPER FUNCTIONS
+
+score_from_ranks_wrapper <- function(x,group){
+  len <- length(x)/2
+  mns <- c(rank(x[1:len]),rank(x[(len+1):(2*len)])+0.5)
+  ord <- order(mns)
+  group   <- c(group,group)[ord]
+  signif(score_from_ranks(which(group=="A"),which(group=="B")),5)
+}
+
+score_from_ranks <- function(A_ranks, B_ranks) {
+  # --- Core Calculations ---
+  n_A <- length(A_ranks)
+  n_B <- length(B_ranks)
+  n <- n_A + n_B
+  
+  # Calculate the actual sums of ranks
+  W_A <- sum(A_ranks)
+  W_B <- sum(B_ranks)
+  actual_diff <- W_B - W_A
+  
+  # --- Determine the Correct Normalization Factor ---
+  
+  # For a perfect A-B sort, ranks of A are 1:n_A, B are (n_A+1):n
+  max_W_B_ab <- sum((n_A + 1):n)
+  min_W_A_ab <- sum(1:n_A)
+  max_diff_ab <- max_W_B_ab - min_W_A_ab
+  
+  # For a perfect B-A sort, ranks of B are 1:n_B, A are (n_B+1):n
+  max_W_A_ba <- sum((n_B + 1):n)
+  min_W_B_ba <- sum(1:n_B)
+  max_diff_ba <- max_W_A_ba - min_W_B_ba
+  
+  # Use the appropriate normalization factor based on the sign of the actual difference
+  if (actual_diff >= 0) {
+    normalization_factor <- max_diff_ab
+  } else {
+    normalization_factor <- max_diff_ba
+  }
+  
+  # --- Normalize to get the final score ---
+  score <- actual_diff / normalization_factor
+  
+  return(score)
+}
+
+
+overlap_coefficient_wrapper <- function(x,group){
+  len <- length(x)/2
+  mns <- x[1:len]
+  prp <- x[(len+1):(2*len)]
+  signif(0.5*(
+      calculate_overlap_coefficient(mns[group=="A"],mns[group=="B"])+
+      calculate_overlap_coefficient(prp[group=="A"],prp[group=="B"])
+    ),
+  5)
+}
+
+
+calculate_overlap_coefficient <- function(x1, x2, n = 512) {
+  
+
+  # Combine the data to find the overall range
+  combined_data <- c(x1, x2)
+  min_val <- min(combined_data)
+  max_val <- max(combined_data)
+  data_range <- max_val - min_val
+  
+  # Deal with all the same values
+  if(data_range==0) return(1)
+  
+  # Define 'a' and 'b' automatically based on your formula
+  a <- min_val - 0.25 * data_range
+  b <- max_val + 0.25 * data_range
+  
+  # Estimate the density for each group, forcing them to use the same x-points
+  density1 <- density(x1, from = a, to = b, n = n)
+  density2 <- density(x2, from = a, to = b, n = n)
+  
+  # The 'density' function's output vectors are already aligned,
+  # so no interpolation is needed.
+  f1 <- density1$y
+  f2 <- density2$y
+  
+  # Calculate the intersection of the two density curves
+  intersection_area <- sum(pmin(f1, f2)) * (density1$x[2] - density1$x[1])
+  
+  return(intersection_area)
+}
+
 

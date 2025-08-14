@@ -129,11 +129,11 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                             selectInput(
                               inputId = "background_type",
                               label = "Choose analysis type:",
-                              choices = c("Foreground vs. all other types",
-                                          "Foreground vs. local types",
+                              choices = c("Foreground vs. local types",
                                           "Foreground vs. custom types",
+                                          "Foreground vs. all other types",
                                           "Trajectory analysis"),
-                              selected = "Foreground vs. all other types"
+                              selected = "Foreground vs. local types"
                             ),
                             h4("Foreground cell types:"),
                             verbatimTextOutput("currentFilterIDs"),  

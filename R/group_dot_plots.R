@@ -84,6 +84,8 @@ generate_dot_plot <- function(input, data, g1_ids, g2_ids, genes){
 # Function to generate the trajectory plot
 generate_trajectory_plot <- function(data, g1_ids, genes){
   
+  scale_data=TRUE
+  
   ## Libraries
   library(ggplot2)
   library(dplyr)   # For data manipulation (e.g., bind_rows, mutate)
@@ -91,11 +93,19 @@ generate_trajectory_plot <- function(data, g1_ids, genes){
   library(forcats) 
   
   ## Define variables
-  means   <- data$means[genes, g1_ids]
-  sds     <- data$sds[genes, g1_ids]
-  count_n <- data$count_n[g1_ids]
-  num_runs<- length(genes)
-  num_cls <- length(g1_ids)
+  means       <- data$means[genes, g1_ids]
+  sds         <- data$sds[genes, g1_ids]
+  count_n     <- data$count_n[g1_ids]
+  num_runs    <- length(genes)
+  num_cls     <- length(g1_ids)
+  gene_labels <- genes
+  
+  ## Scale the data if requested
+  if(scale_data){
+    maxMeans  <- apply(means,1,max)
+    means     <- means / maxMeans
+    gene_labels <- paste0(genes," (max=",signif(maxMeans,3),")")
+  }
   
   # Create a list to store data frames for each gene
   all_series_data <- list()
@@ -106,7 +116,7 @@ generate_trajectory_plot <- function(data, g1_ids, genes){
       Mean_Value = means[i,],
       SD_Value = sds[i,],
       Sample_Size = count_n,
-      Series = genes[i]
+      Series = gene_labels[i]
     )
     
     # Calculate Weights for each series

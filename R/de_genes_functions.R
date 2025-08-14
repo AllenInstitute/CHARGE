@@ -193,6 +193,9 @@ find_trajectory_genes <- function(data, g1_ids) {
   output <- results_df_lapply
   output$WLS_FDR <- p.adjust(output[,"WLS_P_Value"], method = "fdr")
   
+  # Add means
+  output$mean.expression = rowMeans(means)
+  
   # Hard-coded filters (could be added as input later)
   pvalCutoff = 0.1
   
@@ -200,6 +203,9 @@ find_trajectory_genes <- function(data, g1_ids) {
   output <- output %>%
     filter(WLS_P_Value < pvalCutoff) %>%
     arrange(-WLS_T_Value)
+  
+  # Round to N signficant digits
+  output <- signif(output,4)
   
   ## Read gene categories (from function in separate file)
   output <- data.frame(gene=rownames(output),output)
@@ -213,7 +219,11 @@ find_trajectory_genes <- function(data, g1_ids) {
 }
 
 
-############################
+
+
+########################################################
+########################################################
+########################################################
 # HELPER FUNCTIONS
 
 score_from_ranks_wrapper <- function(x,group){

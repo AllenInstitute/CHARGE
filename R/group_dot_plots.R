@@ -81,16 +81,108 @@ generate_dot_plot <- function(input, data, g1_ids, g2_ids, genes){
 }
 
 
-# Function to generate the trajectory plot
+# # Function to generate the trajectory plot
+# generate_trajectory_plot <- function(data, g1_ids, genes){
+#   
+#   scale_data=TRUE
+#   
+#   ## Libraries
+#   library(ggplot2)
+#   library(dplyr)   # For data manipulation (e.g., bind_rows, mutate)
+#   library(tidyr)   # For data reshaping (e.g., pivot_longer)
+#   library(forcats) 
+#   
+#   ## Define variables
+#   means       <- data$means[genes, g1_ids]
+#   sds         <- data$sds[genes, g1_ids]
+#   count_n     <- data$count_n[g1_ids]
+#   num_runs    <- length(genes)
+#   num_cls     <- length(g1_ids)
+#   gene_labels <- genes
+#   
+#   ## Scale the data if requested
+#   if(scale_data){
+#     maxMeans  <- apply(means,1,max)
+#     means     <- means / maxMeans
+#     gene_labels <- paste0(genes," (max=",signif(maxMeans,3),")")
+#   }
+#   
+#   # Create a list to store data frames for each gene
+#   all_series_data <- list()
+#   
+#   for (i in 1:num_runs) {
+#     df_i <- data.frame(
+#       Cell_Type = 1:num_cls,
+#       Mean_Value = means[i,],
+#       SD_Value = sds[i,],
+#       Sample_Size = count_n,
+#       Series = gene_labels[i]
+#     )
+#     
+#     # Calculate Weights for each series
+#     # Variance of the mean = (SD_Value)^2 / Sample_Size
+#     df_i$Weight <- 1 / ((df_i$SD_Value^2) / df_i$Sample_Size)
+#     
+#     all_series_data[[i]] <- df_i
+#   }
+# 
+#   # Combine all series data frames into one large data frame
+#   data_df_long <- bind_rows(all_series_data)
+#   
+#   
+#   # Reorder the 'Series' factor from highest to lowest overall mean
+#   data_df_long <- data_df_long %>%
+#     group_by(Series) %>%
+#     mutate(Overall_Mean_For_Series = mean(Mean_Value)) %>% # Calculate mean for each series
+#     ungroup() %>%
+#     mutate(Series = fct_reorder(Series, Overall_Mean_For_Series, .desc = TRUE)) # Order factor by overall mean, highest first
+#   
+#   
+#   # --- 2. Plot the means with error bars for multiple series ---
+#   
+#   # Remove geom_point to remove dots
+#   # Map 'color' aesthetic to the 'Series' column
+#   g <- ggplot(data_df_long, aes(x = Cell_Type, y = Mean_Value, color = Series)) +
+#     geom_errorbar(aes(ymin = Mean_Value - SD_Value / sqrt(Sample_Size),
+#                       ymax = Mean_Value + SD_Value / sqrt(Sample_Size)),
+#                   width = 0.5, alpha = 0.5, linewidth = 1, 
+#                   # Ensure error bars inherit color from Series
+#                   position = position_dodge(width = 0.1) # Add a slight dodge if error bars overlap
+#     ) +
+#     # Add geom_line to connect the mean points for each series (as dots are removed)
+#     geom_line(aes(group = Series), linewidth = 0.8) + # Group by Series for distinct lines
+#     # Use geom_smooth for WLS lines, coloring by Series and weighting
+#     #geom_smooth(method = "lm", formula = y ~ x, aes(weight = Weight, group = Series), se = TRUE, linetype = "solid") + # WLS lines for each series
+#     labs(title = "Trajectories of shown genes for foreground cell types",
+#          x = "",
+#          y = "Gene Expression") +
+#     theme_minimal() +
+#     # Use a color palette suitable for discrete variables
+#     scale_color_viridis_d(option = "D", direction=1) + # Viridis is colorblind-friendly
+#     
+#     scale_x_continuous(
+#       breaks = unique(data_df_long$Cell_Type), # Ensure a tick for each 'Cell_Type'
+#       labels = g1_ids # Add the labels
+#     ) +
+#     # Optional: Adjust text angle if labels overlap
+#     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#     
+#     theme(legend.position = "right") # Ensure legend is visible
+#   
+#   g 
+#   
+# }
+
 generate_trajectory_plot <- function(data, g1_ids, genes){
   
   scale_data=TRUE
   
   ## Libraries
   library(ggplot2)
-  library(dplyr)   # For data manipulation (e.g., bind_rows, mutate)
-  library(tidyr)   # For data reshaping (e.g., pivot_longer)
-  library(forcats) 
+  library(dplyr)    
+  library(tidyr)    
+  library(forcats)  
+  library(ggrepel) # Add the ggrepel library
   
   ## Define variables
   means       <- data$means[genes, g1_ids]
@@ -104,6 +196,7 @@ generate_trajectory_plot <- function(data, g1_ids, genes){
   if(scale_data){
     maxMeans  <- apply(means,1,max)
     means     <- means / maxMeans
+    sds       <- sds / maxMeans
     gene_labels <- paste0(genes," (max=",signif(maxMeans,3),")")
   }
   
@@ -116,16 +209,16 @@ generate_trajectory_plot <- function(data, g1_ids, genes){
       Mean_Value = means[i,],
       SD_Value = sds[i,],
       Sample_Size = count_n,
-      Series = gene_labels[i]
+      Series = gene_labels[i],
+      Gene = genes[i] # Add the simple gene name to the data frame
     )
     
     # Calculate Weights for each series
-    # Variance of the mean = (SD_Value)^2 / Sample_Size
     df_i$Weight <- 1 / ((df_i$SD_Value^2) / df_i$Sample_Size)
     
     all_series_data[[i]] <- df_i
   }
-
+  
   # Combine all series data frames into one large data frame
   data_df_long <- bind_rows(all_series_data)
   
@@ -133,42 +226,70 @@ generate_trajectory_plot <- function(data, g1_ids, genes){
   # Reorder the 'Series' factor from highest to lowest overall mean
   data_df_long <- data_df_long %>%
     group_by(Series) %>%
-    mutate(Overall_Mean_For_Series = mean(Mean_Value)) %>% # Calculate mean for each series
+    mutate(Overall_Mean_For_Series = mean(Mean_Value)) %>% 
     ungroup() %>%
-    mutate(Series = fct_reorder(Series, Overall_Mean_For_Series, .desc = TRUE)) # Order factor by overall mean, highest first
+    mutate(Series = fct_reorder(Series, Overall_Mean_For_Series, .desc = TRUE))
   
+  # Create a data frame for the labels on the left
+  label_df_left <- data_df_long %>%
+    filter(Cell_Type == min(Cell_Type)) %>%
+    select(Series, Gene, Mean_Value) %>%
+    rename(label = Gene, y = Mean_Value)
   
-  # --- 2. Plot the means with error bars for multiple series ---
+  # Create a data frame for the labels on the right
+  label_df_right <- data_df_long %>%
+    filter(Cell_Type == max(Cell_Type)) %>%
+    select(Series, Gene, Mean_Value) %>%
+    rename(label = Gene, y = Mean_Value)
   
-  # Remove geom_point to remove dots
-  # Map 'color' aesthetic to the 'Series' column
+  # Plot the means with error bars for multiple series
   g <- ggplot(data_df_long, aes(x = Cell_Type, y = Mean_Value, color = Series)) +
     geom_errorbar(aes(ymin = Mean_Value - SD_Value / sqrt(Sample_Size),
                       ymax = Mean_Value + SD_Value / sqrt(Sample_Size)),
                   width = 0.5, alpha = 0.5, linewidth = 1, 
-                  # Ensure error bars inherit color from Series
-                  position = position_dodge(width = 0.1) # Add a slight dodge if error bars overlap
+                  position = position_dodge(width = 0.1) 
     ) +
-    # Add geom_line to connect the mean points for each series (as dots are removed)
-    geom_line(aes(group = Series), linewidth = 0.8) + # Group by Series for distinct lines
-    # Use geom_smooth for WLS lines, coloring by Series and weighting
-    #geom_smooth(method = "lm", formula = y ~ x, aes(weight = Weight, group = Series), se = TRUE, linetype = "solid") + # WLS lines for each series
+    geom_line(aes(group = Series), linewidth = 0.8) +
     labs(title = "Trajectories of shown genes for foreground cell types",
          x = "",
-         y = "Gene Expression") +
+         y = "Gene Expression (scaled from 0 to 1)") +
     theme_minimal() +
-    # Use a color palette suitable for discrete variables
-    scale_color_viridis_d(option = "D", direction=1) + # Viridis is colorblind-friendly
-    
+    scale_color_viridis_d(option = "D", direction=1) +
     scale_x_continuous(
-      breaks = unique(data_df_long$Cell_Type), # Ensure a tick for each 'Cell_Type'
-      labels = g1_ids # Add the labels
+      breaks = unique(data_df_long$Cell_Type),
+      labels = g1_ids
     ) +
-    # Optional: Adjust text angle if labels overlap
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+          legend.text = element_text(size = 12)) + 
     
-    theme(legend.position = "right") # Ensure legend is visible
+    # Use ylim to force y-axis minimum to 0
+    ylim(0, NA) +
+    
+    # Use geom_text_repel for the labels
+    geom_text_repel(data = label_df_left,
+                    aes(x = 1, y = y, label = label, color = Series), 
+                    hjust = 1, 
+                    size = 5,
+                    direction = "y",
+                    nudge_x = -0.04-0.04*num_cls, # Nudge the text depending on number of clusters
+                    segment.size = 0.5,
+                    segment.color = "grey50",
+                    segment.linetype = "dotted",
+                    show.legend = FALSE
+    ) +
   
-  g 
+    # Add a second geom_text_repel for the right-side labels
+    geom_text_repel(data = label_df_right,
+                    aes(x = num_cls, y = y, label = label, color = Series),
+                    hjust = 0, # Left-align the text
+                    size = 5,
+                    direction = "y",
+                    nudge_x = 0.04+0.04*num_cls, # Nudge the text depending on number of clusters
+                    segment.size = 0.5,
+                    segment.color = "grey50",
+                    segment.linetype = "dotted",
+                    show.legend = FALSE
+    )
   
+  g
 }

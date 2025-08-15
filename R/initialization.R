@@ -37,7 +37,7 @@ levels = c(
 
 
 #... where is the CHARGE.RData file?
-S3_folder = "s3://pga-genomics-wg-802451596237-us-west-2/CHARGE_data/test_CHARGE.RData"
+S3_folder = "s3://pga-genomics-wg-802451596237-us-west-2/CHARGE_data/"
 table_locations <- c(
   paste0(S3_folder,"Human_MTG_SEAAD_04042025_CHARGE.RData"),
   paste0(S3_folder,"Human_MTG_SMART_seq_08082025_CHARGE.RData"),

@@ -51,6 +51,8 @@ generate_dot_plot <- function(input, data, g1_ids, g2_ids, genes){
   ## Create the dot plot
   g <- ggplot(plot_data, aes(x = Cluster, y = Gene)) +
     geom_point(aes(color = ColorValue, size = SizeValue)) +
+    # --- Add a dotted vertical line to separate g1 from g2 clusters ---
+    geom_vline(xintercept = length(g1_ids) + 0.5, linetype = "dotted", color = "black", size = 0.5) +
     # --- Color Scale ---
     # Use a diverging color scale if ColorValue has a natural midpoint (e.g., 0 for logFC)
     # Or a sequential scale if values range from low to high (e.g., expression)
@@ -184,6 +186,15 @@ generate_trajectory_plot <- function(data, g1_ids, genes){
   library(forcats)  
   library(ggrepel) # Add the ggrepel library
   
+  # Return a warning without a plot if only two clusters are included in the trajectory
+  if(length(g1_ids)<3){
+    g = ggplot() +
+      annotate("text", x = 0.5, y = 0.5, label = "Trajectories require at least three 'Foreground cell types'.", 
+               size = 8, color = "black") +
+      theme_void()
+    return(g)
+  }
+  
   ## Define variables
   means       <- data$means[genes, g1_ids]
   sds         <- data$sds[genes, g1_ids]
@@ -232,15 +243,15 @@ generate_trajectory_plot <- function(data, g1_ids, genes){
   
   # Create a data frame for the labels on the left
   label_df_left <- data_df_long %>%
-    filter(Cell_Type == min(Cell_Type)) %>%
-    select(Series, Gene, Mean_Value) %>%
-    rename(label = Gene, y = Mean_Value)
+    dplyr::filter(Cell_Type == min(Cell_Type)) %>%
+    dplyr::select(Series, Gene, Mean_Value) %>%
+    dplyr::rename(label = Gene, y = Mean_Value)
   
   # Create a data frame for the labels on the right
   label_df_right <- data_df_long %>%
-    filter(Cell_Type == max(Cell_Type)) %>%
-    select(Series, Gene, Mean_Value) %>%
-    rename(label = Gene, y = Mean_Value)
+    dplyr::filter(Cell_Type == max(Cell_Type)) %>%
+    dplyr::select(Series, Gene, Mean_Value) %>%
+    dplyr::rename(label = Gene, y = Mean_Value)
   
   # Plot the means with error bars for multiple series
   g <- ggplot(data_df_long, aes(x = Cell_Type, y = Mean_Value, color = Series)) +

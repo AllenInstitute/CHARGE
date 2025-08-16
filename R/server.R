@@ -19,12 +19,19 @@ guess_type <- function(x) {
   }
 }
 
+## DEFAULT VALUES
 default_vals <- list(db = "Enter a file path or URL here, or choose from dropdown above.",
                      sf = "Enter a file path or URL here, or choose from dropdown above.",
                      list_selection = "Foreground",
                      plot_selection = "Sunburst"
 )
 
+## ORTHOLOGS FOR GENE SET ENRICHMENT
+orthologs <- vroom("https://github.com/AllenInstitute/GeneOrthology/raw/05300f8dd1fdbe38db56d318337c682437227974/csv/mammalian_orthologs_20231113.csv")
+orthologs <- as.data.frame(orthologs)
+
+## TOOL TIPS FOR THE de_table
+tooltip_data <- read.csv("table_column_definitions.csv", stringsAsFactors = FALSE)
 
 ######################################################
 ## Default table information is in initialization.R ##
@@ -597,10 +604,39 @@ server <- function(input, output, session) {
       }
   })
   
+
   output$de_table <- renderDataTable({
     req(calculate_de_genes())
+    data_df = calculate_de_genes()
     
-    datatable(calculate_de_genes(), filter = "top", options = list(scrollX = TRUE, scrollY = TRUE, pageLength = 10))
+    ## Dynamically determine tool tip definitions
+    column_definitions <- sapply(colnames(data_df), function(col_name) {
+      # Find the matching tooltip from the loaded data
+      match <- tooltip_data[tooltip_data$column_names == col_name, "column_definitions"]
+      # If a match is not found, provide a default tooltip
+      if (length(match) == 0) {
+        return(paste("No definition available for", col_name))
+      }
+      return(match)
+    }, USE.NAMES = FALSE)
+    
+    datatable(data_df, filter = "top", 
+              options = list(scrollX = TRUE, 
+                             scrollY = TRUE, 
+                             pageLength = 10, 
+                             lengthMenu = list(c(5, 10, 20), c('5', '10', '20')),
+                             headerCallback = JS(
+                               paste0(
+                                 "function(thead, data, start, end, display) {",
+                                 "  var tooltips = ", toJSON(column_definitions), ";",
+                                 "  $(thead).find('th').each(function(i) {",
+                                 "    this.setAttribute('title', tooltips[i]);",
+                                 "  });",
+                                 "}"
+                               )
+                             )
+              )
+    )
     
   })
   
@@ -620,63 +656,7 @@ server <- function(input, output, session) {
       
     }
   )
-  
-  
-  
-  get_genes_bottom <- reactive({
-    req(calculate_de_genes())
-    req(input$de_table_rows_current)
-    req(db_type())
-    req(all_genes())
-    
-    db_type <- db_type()
-    
-    de_table <- calculate_de_genes()
-    
-    cat("de genes bottom: de table \n")
-    # print(de_table)
-    
-    current_de_table <- de_table[input$de_table_rows_current,]
-    # print(current_de_table)
-    
-    top10_genes <- head(current_de_table$gene,10)
-    
-    cat("print top10_genes \n")
-    # print(top10_genes)
-    
-    if(db_type == "feather") {
-      
-      checked_top10_genes <- check_genes_feather(input_db = input$db, 
-                                                 input_genes = top10_genes,
-                                                 type = "vector")
-      
-      cat("checked top 10 genes feather \n")
-      # print(checked_top10_genes)
-      checked_top10_genes
-      
-      
-    } else if(db_type == "tome") {
-      
-      all_genes <- all_genes()
-      checked_top10_genes <- check_genes(genes = top10_genes, 
-                                         gene_reference = all_genes,
-                                         result = "both")
-      
-      cat("checked top 10 genes tome \n")
-      # print(checked_top10_genes)
-      checked_top10_genes
-      
-    }
-    
-    
-    checked_top10_genes
-    
-    
-  })
-  
-  
-  
-  
+
   output$downloadPlot <- downloadHandler(    
     
     filename = "sifter_heatmap.pdf",
@@ -751,7 +731,7 @@ server <- function(input, output, session) {
     current_de_table <- de_table[input$de_table_rows_current,]
     # print(current_de_table)
     
-    top10_genes <- head(current_de_table$gene,10)
+    top10_genes <- head(current_de_table$gene,100)
     
     top10_genes
     
@@ -780,6 +760,118 @@ server <- function(input, output, session) {
       
     }
     
+  })
+  
+  
+  ##################################################
+  #####          GENE SET ENRICHMENT           ##### 
+  ##################################################
+  
+  output$gene_analysis_results_text <- renderUI({
+    HTML("This section includes an interactive table of genes of potential interest based on the cell types and analysis type above, plots visualizing gene expression in selected cell types for the genes in the table, and buttons for downloading data and images and for performing get set enrichment. <b>We strongly encourage sorting and filtering by the various parameters to optimize gene selection,</b> although reasonable defaults are chosen. Hover over a column name to see a definition of that column. Note: the complete set of <b>filtered</b> genes (not just the shown genes) is used for gene set enrichment analysis.<br>")
+  })
+  
+  
+  # Enrichment button
+  output$gene_set_enrichment_button <- renderUI(
+    if(isTruthy(calculate_de_genes())) {
+      
+      actionButton("gene_set_enrichment","Calculate Gene Set Enrichment")
+      
+    }
+  )
+  
+  # Reactive expression to store enrichment results
+  enrichment_result <- eventReactive(input$gene_set_enrichment, {
+
+    req(calculate_de_genes())
+    req(rv_anno())
+    cat("gene set enrichment \n")
+    
+    # Show processing message
+    output$processing_message <- renderText("Running enrichment analysis...")
+    
+    # Read in current gene list
+    de_table <- calculate_de_genes()
+    current_de_table <- de_table[input$de_table_rows_all,]
+    genes <- as.character(current_de_table$gene)
+    
+    # If not human, convert to human gene symbols
+    top_col <- apply(orthologs,2,function(x,y) length(intersect(x,y)),genes)
+    top_col <- names(sort(-top_col))[1]
+    if(top_col!="Human_Symbol"){
+      genes <- orthologs[is.element(orthologs[,top_col],genes),"Human_Symbol"]
+    }
+    
+    # Check if any genes remain
+    if (length(genes) == 0) {
+      showModal(modalDialog(
+        title = "No Genes Found",
+        "No valid genes found for gene set enrichment."
+      ))
+      return(NULL)
+    }
+    
+    # Define background for a general enrichment analysis.
+    data <- rv_anno()
+    background_genes <- rownames(data$counts)
+    if(top_col!="Human_Symbol"){
+      background_genes <- orthologs[is.element(orthologs[,top_col],background_genes),"Human_Symbol"]
+    }
+    all_genes <- intersect(keys(org.Hs.eg.db, keytype = "SYMBOL"),background_genes)
+    
+    cat(paste(length(intersect(genes,background_genes)),"genes in gene set \n"))
+    
+    # Perform Gene Ontology (GO) enrichment analysis
+    #   NOTE: `org.Hs.eg.db` uses Entrez IDs. For simplicity, we'll assume the
+    #   user's list are gene symbols that match the database.
+    tryCatch({
+      # Perform the enrichment analysis using enrichGO
+      go_enrich_results <- enrichGO(
+        gene = genes,
+        universe = all_genes, # Use the comprehensive list of all human genes
+        OrgDb = org.Hs.eg.db,
+        keyType = "SYMBOL",
+        ont = "BP", # Use Biological Process ontology
+        pAdjustMethod = "BH",
+        pvalueCutoff = 0.05,
+        qvalueCutoff = 0.05
+      )
+      
+      # Hide processing message
+      output$processing_message <- renderText("")
+      
+      return(go_enrich_results)
+      
+    }, error = function(e) {
+      showModal(modalDialog(
+        title = "Analysis Error",
+        paste("An error occurred during analysis:", e$message),
+        footer = modalButton("OK")
+      ))
+      output$processing_message <- renderText("")
+      return(NULL)
+    })
+  })
+  
+  # Render the enrichment plot
+  output$enrichment_plot <- renderPlot({
+    
+    # Get the results from the reactive expression
+    results <- enrichment_result()
+    save(results,file="tmp.RData")
+    
+    # Check if the enrichment result is a valid object with significant hits
+    if (is.null(results) || !inherits(results, "enrichResult") || nrow(results) == 0) {
+      # Return a blank plot with a message if no significant results are found
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "No significant enrichment results found.",
+                 size = 5, color = "grey50") +
+        theme_void()
+    } else {
+      # Use dotplot from clusterProfiler to visualize the results
+      dotplot(results, showCategory = 10, title = "Gene Ontology Enrichment Analysis") 
+    }
   })
   
 

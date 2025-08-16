@@ -68,9 +68,9 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
 	g1_means <- log2(g1_sums1/g1_n+1)
   g2_means <- log2(g2_sums1/g2_n+1)
 	
-  # Calculate differnetial gene score based on mean and proportions from Sten Linnarsson's group
+  # Calculate differential gene score based on mean and proportions from Sten Linnarsson's group
   # E[i,j] = ((f[i,j] + epsilon_1)/(f[i,j_hat] + epsilon_1))*((mu[i,j] + epsilon_2)/(mu[i,j_hat] + epsilon_2))
-  #where f(i,j) is the fraction of non-zero expression values in the cluster and f(i,j_hat) is the fraction of non-zero expression values for cells not in the cluster. Similarly, mu(i,j) is the mean expression in the cluster and mu(i,j_hat) is the mean expression for cells not in the cluster. Small constants are added to prevent the enrichment score from going to infinity as the mean or non-zero fractions go to zero (we use epsilon_1 = 0.1 and epsilon_2 = 0.01). This formula captures both enrichment in terms of levels (mu) and in terms of fraction expressing cells (f). There is no naturall cutoff, so we usually simply look at the top ten genes, but of course you could compute a null distribution using shuffled data and get a P value.
+  #where f(i,j) is the fraction of non-zero expression values in the cluster and f(i,j_hat) is the fraction of non-zero expression values for cells not in the cluster. Similarly, mu(i,j) is the mean expression in the cluster and mu(i,j_hat) is the mean expression for cells not in the cluster. Small constants are added to prevent the enrichment score from going to infinity as the mean or non-zero fractions go to zero (we use epsilon_1 = 0.1 and epsilon_2 = 0.01). This formula captures both enrichment in terms of levels (mu) and in terms of fraction expressing cells (f). There is no natural cutoff, so we usually simply look at the top ten genes, but of course you could compute a null distribution using shuffled data and get a P value.
   epsilon_1 = 0.1
   epsilon_2 = 0.01
   propMeanScore <- log2(((g1_props + epsilon_1)/(g2_props + epsilon_1))*
@@ -111,8 +111,12 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
 	
 	# Calculate the overlap coefficient. A formal statistical metric for quantifying the overlap between two distributions is the overlapping coefficient (OVL). This measures the area of intersection between the probability density functions of two distributions. A low OVL value indicates a high degree of separation between the groups, while a high value means they are largely indistinguishable. The value of OVL ranges from 0 (no overlap) to 1 (complete overlap). This is a general measure of separation
 	# In this case we'll take the average value when running this test on means and proportions
-	overlap_coefficient <- apply(datIn,1,overlap_coefficient_wrapper,
-	                             c(rep("A",length(g1_ids)),rep("B",length(g2_ids))))
+	if(min(length(g1_ids),length(g2_ids))>1){
+	  overlap_coefficient <- apply(datIn,1,overlap_coefficient_wrapper,
+	                               c(rep("A",length(g1_ids)),rep("B",length(g2_ids))))
+	} else {
+	  overlap_coefficient <- 0
+	}
 	
 	## Add the new statistics and reorder so they show up earlier
 	output = cbind(output, rank_biserial_corr, overlap_coefficient)
@@ -120,8 +124,9 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
 	
 	## Read gene categories (from function in separate file)
 	source("read_gene_lists.r", local=TRUE)
-	output$ABC_atlas = "Future link-out to ABC Atlas"
-
+	output$ABC_atlas___ = "Coming soon!"
+	rownames(output) = NULL
+	
 	# Return the table
 	output
 	
@@ -197,21 +202,23 @@ find_trajectory_genes <- function(data, g1_ids) {
   output$mean.expression = rowMeans(means)
   
   # Hard-coded filters (could be added as input later)
-  pvalCutoff = 0.1
+  
+  pvalCutoff = max(0.1,sort(output$WLS_P_Value)[100])
   
   # Define the output table
   output <- output %>%
-    filter(WLS_P_Value < pvalCutoff) %>%
+    filter(WLS_P_Value <= pvalCutoff) %>%
     arrange(-WLS_T_Value)
   
-  # Round to N signficant digits
+  # Round to N significant digits
   output <- signif(output,4)
   
   ## Read gene categories (from function in separate file)
   output <- data.frame(gene=rownames(output),output)
   rownames(output) <- NULL
   source("read_gene_lists.r", local=TRUE)
-  output$ABC_atlas = "Future link-out to ABC Atlas"
+  output$ABC_atlas___ = "Coming soon!"
+  rownames(output) = NULL
   
   # Return the table
   output

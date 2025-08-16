@@ -6,7 +6,11 @@ suppressPackageStartupMessages({
   library(shinydashboard)
   library(plotly)
   library(shinycssloaders)
-  library(aws.s3)  # For s3 functionality
+  library(aws.s3)          # For s3 functionality
+  library(clusterProfiler) # For gene set enrichment
+  library(org.Hs.eg.db)    # For gene set enrichment
+  library(vroom)           # for reading in orthologs for gene set enrichment
+  library(jsonlite)        # for tool tips
 })
 
 # Define UI for application that draws a histogram
@@ -84,6 +88,14 @@ ui <- function(request) {   # Note that I might need to remove "function(request
       .main-sidebar {
         background-color: #1C2532 !important; /* A shade of blue */
       }
+      #enrichment_table td {
+        white-space: normal !important;
+        height: auto; /* Forces the cell to adopt its content height */
+        line-height: normal; /* Ensures line spacing is standard */
+      }
+      #enrichment_table table.dataTable thead th {
+        vertical-align: top;
+      }
       "))),
       
       #useShinyjs(),  # shinyjs not currently used
@@ -155,7 +167,6 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                             uiOutput("conditional_background_filter"),
                             uiOutput("conditional_background_clear")
                             
-                            
                      ),
                      column(7,
                             plotlyOutput("sunburst", height = "740"),
@@ -165,8 +176,14 @@ ui <- function(request) {   # Note that I might need to remove "function(request
              ),
       ),
       
-      fluidRow(column(6, uiOutput("download_table_button"))),
       
+      conditionalPanel(
+        condition = "input.find_degenes > 0",
+        hr(style = "border-top: 3px solid #000000;"),
+        h3("Gene analysis results"),
+        uiOutput("gene_analysis_results_text"), 
+        hr(style = "border-top: 1px dotted #777777;")
+      ),
       
       fluidRow(column(
         12,
@@ -178,6 +195,33 @@ ui <- function(request) {   # Note that I might need to remove "function(request
         12,
         withSpinner(plotOutput("dotplot", height = "800px"))
       )),   
+      
+      
+      fluidRow(
+        div(
+          style = "display: flex; gap: 10px;", # Use a flexible container
+          div(
+            uiOutput("download_table_button")
+          ),
+          div(
+            uiOutput("gene_set_enrichment_button")
+          ),
+          div(
+            conditionalPanel(
+              condition = "input.gene_set_enrichment > 0",
+              p("Enrichment is a go!")
+            ),
+          ),
+          div(
+            textOutput("processing_message")  # This isn't working, but it's also not hurting anything
+          ),
+        ) 
+      ),
+      
+      conditionalPanel(
+        condition = "input.gene_set_enrichment > 0",
+        plotOutput("enrichment_plot",height = "400px")
+      ),
       
       fluidRow(width = 12, br(), br())
       

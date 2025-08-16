@@ -1,11 +1,8 @@
-# source("//allen/programs/celltypes/workgroups/rnaseqanalysis/shiny/common/reference_files/gene_lists/read_gene_lists.r", local=TRUE)
 # This script compiles all the files in this folder for the subset of requested genes
-
 
 ###################################################################################################
 ### This code block adds gene categories to the output
 wd   <- "gene_lists/"
-#wd   <- ("\\\\allen\\programs\\celltypes\\workgroups\\rnaseqanalysis\\shiny\\common\\reference_files\\gene_lists\\")
 fnIn <- dir(wd)
 fnIn <- fnIn[grepl(".csv",fnIn)|grepl(".txt",fnIn)]
 gene_lists <- NULL

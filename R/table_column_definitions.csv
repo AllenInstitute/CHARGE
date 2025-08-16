@@ -1,0 +1,18 @@
+column_names,column_definitions
+gene,Gene symbol
+prop_diff,Difference in the proportions of cells expressed with CPM>1 in the foreground vs. the comparison cell types.
+log2_FC,Difference in average log2-normalized gene expression (CPM) between cells in the foreground vs. the comparison cell types.
+propMeanScore,"A metric defining differential expression using mean expression and proportion (from Sten Linnarsson's group).  Specifically, E[i,j] = ((f[i,j] + epsilon_1)/(f[i,j_hat] + epsilon_1))*((mu[i,j] + epsilon_2)/(mu[i,j_hat] + epsilon_2)), where f(i,j) is the fraction of non-zero expression values in the cluster and f(i,j_hat) is the fraction of non-zero expression values for cells not in the cluster. Similarly, mu(i,j) is the mean expression in the cluster and mu(i,j_hat) is the mean expression for cells not in the cluster. Small constants are added to prevent the enrichment score from going to infinity (we use epsilon_1 = 0.1 and epsilon_2 = 0.01)."
+gr1_prop,Proportions of cells expressed with CPM>1 in the foreground cell types.
+gr1_mean,Average log2-normalized gene expression (CPM) for cells in the foreground cell types.
+gr2_prop,Proportions of cells expressed with CPM>1 in the comparison cell types.
+gr2_mean,Average log2-normalized gene expression (CPM) for cells in the comparison cell types.
+rank_biserial_corr,"The Rank Biserial Correlation Coefficient (r_b) is a non-parametric measure of effect size for a two-group ranking. It quantifies how well a binary classification (like being in group A or B) predicts the rank order of the items. It is intended to reflect both the purity of the groups and the direction of the sorting (e.g., A's before B's)."
+overlap_coefficient,"The overlapping coefficient (OVL) is a formal statistical metric for quantifying the overlap between two distributions. It measures the area of intersection between the probability density functions of two distributions. A low OVL value (min=0) indicates a high degree of separation between the groups, while a high value (max=1) means they are largely indistinguishable."
+WLS_Slope,"WLS_Slope is the slope is the slope of the regression.  Weighted Least Squares (WLS) uses means and standard deviations to quantify the significance of a trajectory. WLS is a variation of ordinary linear regression that assigns a different ""weight"" to each data point (with more weight assigned to cell types with lower standard deviation). "
+WLS_T_Value,Weighted Least Squares (WLS) T value is a statistical metric that includes the direction and magnitude of the statistical significance.
+WLS_P_Value,Weighted Least Squares (WLS) P value is an uncorrected measure of the signficance of the WLS statistic.
+WLS_FDR,Weighted Least Squares (WLS) P value is a false discovery rate (FDR)-corrected measure of the signficance of the WLS statistic.
+mean.expression,Average log2-normalized gene expression (CPM) for cells in all cells in the trajectory.
+gene_categories________________________________________________________,"A list of gene categories, including HGNC gene groups, ion channels, neuropeptides and more.  All gene lists are inclduded at https://github.com/AllenInstitute/CHARGE/tree/main/R/gene_lists. As of August 2025, these are quite old (circa ~2015), but represent a reasonable starting point for exploration."
+ABC_atlas___,Future link-out to the ABC Atlas (or other visualization )

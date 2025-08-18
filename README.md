@@ -7,13 +7,13 @@ CHARGE uses fast, cluster-centric approaches to find global or local marker gene
 
 ## Generated CHARGE'd data files
 
-CHARGE can be run on any taxonomy saved in the [Allen Institute Taxonomy (AIT) schema and h5ad file format](https://github.com/AllenInstitute/AllenInstituteTaxonomy).  We are in the process of converting [all available public taxonomies](https://github.com/AllenInstitute/AllenInstituteTaxonomy/blob/main/taxonomies.md) to CHARGE'd data files. If the taxonomy you are looking for is not included, the script used for generating Rmd files from AIT files can be found here: https://github.com/AllenInstitute/CHARGE_taxonomy.  Note that the resulting Rmd files can be quite large and may need to be saved in a public S3 bucket to be accessible via the website version of the app (see below).
+CHARGE can be run on any taxonomy saved in the [Allen Institute Taxonomy (AIT) schema and h5ad file format](https://github.com/AllenInstitute/AllenInstituteTaxonomy), as well as from clustered and annotated cell x gene expression data. The [CHARGE_taxonomy](https://github.com/AllenInstitute/CHARGE_taxonomy) companion page includes code for generating .RData files readable by CHARGE.  
 
 ## Running CHARGE 
 
 ### Option 1: Visit the website (recommended)
 
-We recommend using the version of this tool [hosted on molgen-shiny.org](https://molgen-shiny.org/CHARGE/)**. 
+We recommend using the version of this tool [hosted on molgen-shiny.org](https://molgen-shiny.org/CHARGE/)**. This includes [all available public taxonomies](https://github.com/AllenInstitute/AllenInstituteTaxonomy/blob/main/taxonomies.md) as of 15 August 2025.  While most user-provided files should be uploadable, files from larger taxonomies may need to be saved to a public S3 bucket to be accessible via the website version of the app.  Files of any size can be accessed via a local app instance.
 
 ### Option 2: Run locally
 

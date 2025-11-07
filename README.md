@@ -25,7 +25,7 @@ For power users, this tool can also be run locally in R Studio by following the 
 (You only need do this step once).
 1. Install R (ideally version 4.5.1)
 2. Install RStudio
-3. Download the files from this repo in a working directory
+3. Download the files from this repo in a working directory (💻 [Access GitHub Source Code](https://github.com/AllenInstitute/CHARGE))
 4. Set up your R environment to align with the [renv.lock file](https://github.com/AllenInstitute/CHARGE/blob/main/renv.lock)
 
 We recommend using [rig](https://github.com/r-lib/rig) for R installation management along with [renv](https://rstudio.github.io/renv/) for R environment management.  After installing rig, you should be able to run these rig commands in a terminal from your working directory to tackle steps #1 and #4:

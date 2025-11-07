@@ -1,7 +1,9 @@
 # CHARGE
-Cell HierARchy Gene Explorer (CHARGE) is an interactive tool for identifying genes of potential biological interest in a cell type taxonomy. 
+<a href="https://molgen-shiny.org/CHARGE/">Cell HierARchy Gene Explorer (CHARGE)</a> is an interactive tool for identifying genes of potential biological interest in a cell type taxonomy. 
 
+<a href="https://molgen-shiny.org/CHARGE/">
 <img width="150" alt="CHARGE logo" src="R/www/CHARGE_logo.png">
+</a>
 
 CHARGE uses fast, cluster-centric approaches to find global or local marker genes, differentially expressed genes, and genes following user selected gradients. Outputs of CHARGE include basic visualization of interesting genes and download of gene names and analysis statistics. CHARGE emphasizes speed and usability over statistical rigor, and we encourage users to explore cell level data in the Allen Brain Cell Atlas, CELLxGENE, or related tools.
 

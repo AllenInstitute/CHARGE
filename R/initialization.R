@@ -11,6 +11,7 @@ table_names <- c(
   "Whole cortex and hippocampus (2021): SMART-seq",
   "V1 & ALM (2018): SMART-seq",
   "Comparative LGN (2018): SMART-seq",
+  "Consensus Basal Ganglia (2025): 10x seq, macaque data",
   "Comparative LGN (2018): SMART-seq"
 )
 
@@ -25,6 +26,7 @@ categories <- factor(c(
   "Mouse brain cell types",
   "Mouse brain cell types",
   "Mouse brain cell types",
+  "Other mammalian brain cell types",
   "Other mammalian brain cell types"
   ),
 # This is the order they will show up on in the list. **MAKE SURE THERE ARE NO TYPOS!**
@@ -48,6 +50,7 @@ table_locations <- c(
   paste0(S3_folder,"Mouse_cortex_hippocampus_SMART_seq_04042025_CHARGE.RData"),
   paste0(S3_folder,"Mouse_VISp_ALM_SMART_seq_04042025_CHARGE.RData"),
   paste0(S3_folder,"Mouse_LGN_SMART_seq_04042025_CHARGE.RData"),
+  paste0(S3_folder,"Macaque_BG_10X_seq_11112025_TEST_CHARGE.RData"),
   paste0(S3_folder,"Macaque_LGN_SMART_seq_04042025_CHARGE.RData")
 )
 
@@ -71,6 +74,8 @@ descriptions   <- c(
   "Explore cell types in mouse primary visual cortex (VISp) and anterior lateral motor cortex (ALM) circa 2018 as described in Tasic et al 2018 (Nature; https://doi.org/10.1038/s41586-018-0654-5)! Underlying data and additonal visualizations are available at https://portal.brain-map.org/atlases-and-data/rnaseq/mouse-v1-and-alm-smart-seq.",
   
   "Explore cell types in mouse dorsolateral geniculate complex (LGd) circa 2021 as described in Bakken, van Velthoven, Menon, et al, 2021 (eLife; https://doi.org/10.7554/eLife.64875)! Underlying data are available at https://portal.brain-map.org/atlases-and-data/rnaseq/comparative-lgn.",
+  
+  "Explore cell types in macaque basal ganglia. These data are part of a cross-species consensus taxonomy just released (11/13/2025) on Allen Brain Map. Download the data and explore the comprehensive, highly granular cell atlas spanning adult human, macaque, and marmoset brains that links brain structure, function and cellular architecture at https://brain-map.org/consortia/hmba/hmba-release-basal-ganglia. Note that the statistics associated with this data set are still being adjusted.",
   
   "Explore cell types in macaque lateral geniculate nucleus (LGN) circa 2021 as described in Bakken, van Velthoven, Menon, et al, 2021 (eLife; https://doi.org/10.7554/eLife.64875)! Underlying data are available at https://portal.brain-map.org/atlases-and-data/rnaseq/comparative-lgn."
   

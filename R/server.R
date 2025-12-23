@@ -578,30 +578,89 @@ server <- function(input, output, session) {
   })
  
   
+
   ##################################################
   #######   DIFFERENTIAL GENE CALULATIONS    #######
+  #######              - OR -                #######
+  #######   PROVIDING LIST OF KNOWN GENES    #######
   ##################################################
   
   
-  calculate_de_genes <- eventReactive(input$find_degenes, {
+  # 1. Create a "tracker" to store which button was clicked last
+  last_clicked <- reactiveVal(NULL)
+  
+  # 2. Use observers to update the tracker
+  observeEvent(input$find_degenes, { last_clicked("find_degenes") })
+  
+  # If the known_genes button is pressed, pop up a box to input the gene list
+  observeEvent(input$known_genes, { 
     
+    showModal(modalDialog(
+      title = "Input Data",
+      textInput("raw_input", "Enter items (comma-separated):", 
+                placeholder = "e.g. GAPDH, APOE, CD4"),
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("submit_data", "Save & Process", class = "btn-primary")
+      )
+    ))
+    
+  })
+  
+  observeEvent(input$submit_data, {
+    # Validation: Ensure input isn't empty
+    req(input$raw_input)
+    
+    last_clicked(input$raw_input)
+    
+    # Close the modal
+    removeModal()
+  })
+  
+  
+  calculate_de_genes <- reactive({  #eventReactive(input$find_degenes, {  # input$known_genes
+    
+    req(last_clicked()) # Ensure a button has been clicked
     req(rv_anno())
     
-    if(length(rv_sunburst$selected_nodes$foreground)>0)
-      
-      if(!((length(rv_sunburst$selected_nodes$background)==0)&(input$background_type=="Foreground vs. custom types"))){
-        data <- rv_anno()
+    if(last_clicked()=="find_degenes"){
+      if(length(rv_sunburst$selected_nodes$foreground)>0)
         
-        if(input$background_type=="Trajectory analysis"){
+        if(!((length(rv_sunburst$selected_nodes$background)==0)&(input$background_type=="Foreground vs. custom types"))){
+          data <- rv_anno()
           
-          find_trajectory_genes(data, rv_sunburst$selected_nodes$foreground)
-          
-        } else {
-          
-          find_de_genes(data, input, rv_sunburst$selected_nodes$foreground, rv_sunburst$selected_nodes$background)
-          
+          if(input$background_type=="Trajectory analysis"){
+            
+            find_trajectory_genes(data, rv_sunburst$selected_nodes$foreground)
+            
+          } else {
+            
+            find_de_genes(data, input, rv_sunburst$selected_nodes$foreground, rv_sunburst$selected_nodes$background)
+            
+          }
         }
-      }
+    } else {
+      if(length(rv_sunburst$selected_nodes$foreground)>0)
+        
+        if(!((length(rv_sunburst$selected_nodes$background)==0)&(input$background_type=="Foreground vs. custom types"))){
+          data <- rv_anno()
+          
+          input_gene_set <- strsplit(last_clicked(), ",")[[1]]
+          input_gene_set <- trimws(input_gene_set)
+          write("input_gene_set",stderr())
+          write(input_gene_set,stderr())
+          
+          if(input$background_type=="Trajectory analysis"){
+            
+            find_trajectory_genes(data, rv_sunburst$selected_nodes$foreground, in_genes = input_gene_set)
+            
+          } else {
+            
+            find_de_genes(data, input, rv_sunburst$selected_nodes$foreground, rv_sunburst$selected_nodes$background, in_genes = input_gene_set)
+            
+          }
+        }
+    }
   })
   
 

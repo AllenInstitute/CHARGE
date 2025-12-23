@@ -1,5 +1,5 @@
 # This function defines and returns genes and associated statistics for genes differentially expressed between a foreground and background set of cell types.
-find_de_genes <- function(data, input, g1_ids, g2_ids) {
+find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 
   ## Define variables
   counts       <- data$counts
@@ -32,6 +32,35 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
   # Total number of cells per group
   g1_n <- sum(count_n[names(count_n) %in% g1_ids])
   g2_n <- sum(count_n[names(count_n) %in% g2_ids])
+
+  # Gene names
+  all_genes <- rownames(counts)
+  
+  #########################################
+  ### NEW - FOR USER-PROVIDED GENE SETS ###
+    
+  if(!is.null(in_genes)){
+    use_genes = intersect(all_genes,in_genes)
+    if(length(use_genes)<2){
+      showNotification("Warning: fewer than two genes included. Defaulting to normal differential expression calculation.", type = "warning")
+      in_genes = NULL
+    } else {
+      missing_genes = setdiff(in_genes,use_genes)
+      if(length(missing_genes)>0){
+        missing_genes <- paste(missing_genes,collapse=", ")
+        showNotification(paste("Warning:",missing_genes,"are not valid genes in this data set."), type = "warning")
+      }
+      rownames(counts) <- rownames(sums) <- rownames(props) <- rownames(means) <- all_genes
+      counts <- counts[use_genes,]
+      sums   <- sums[use_genes,]
+      props  <- props[use_genes,]
+      means  <- means[use_genes,]
+    }
+  } else {
+    use_genes = all_genes
+  }
+  ### End new section
+  #########################################
   
   # Subset of count matrix  per group
   g1_data <- counts[, g1_ids]
@@ -50,9 +79,6 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
   }
   g1_props  <- g1_counts/g1_n
   g2_props  <- g2_counts/g2_n
-
-  # Gene names
-  all_genes <- rownames(counts)
 
 	# Calculate the log-normalized group sums and means
   if(length(g1_ids)>1){
@@ -77,7 +103,7 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
                                 ((g1_means + epsilon_2)/(g2_means + epsilon_2)))
 
 	# Choose top DEX genes based on difference in proportion
-	output <- data.frame(gene = all_genes, 
+	output <- data.frame(gene = use_genes, 
 	                     prop_diff     = round(g1_props - g2_props,5), 
 	                     log2_FC       = round(g1_means - g2_means,3),
 	                     propMeanScore = round(propMeanScore,3),
@@ -92,10 +118,12 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
 	absPropDiff   = 0.1
 	
 	# Define the output table
-	output <- output %>%
-	  filter(abs(prop_diff) > absPropDiff) %>%
-	  filter(gr1_mean + gr2_mean > meanSum) %>%
-	  arrange(-prop_diff)
+	if(is.null(in_genes)){
+	  output <- output %>%
+	    filter(abs(prop_diff) > absPropDiff) %>%
+	    filter(gr1_mean + gr2_mean > meanSum) %>%
+	    arrange(-prop_diff)
+	}
 	
 	##############################
 	## Add additional statistics for the subset of genes still included
@@ -135,13 +163,36 @@ find_de_genes <- function(data, input, g1_ids, g2_ids) {
 
 
 # This function defines and returns genes and associated statistics for genes showing a trajectory pattern in a single ordered set of cell types.
-find_trajectory_genes <- function(data, g1_ids) {
+find_trajectory_genes <- function(data, g1_ids, in_genes = NULL) {
   
   ## Define variables
   means   <- data$means[, g1_ids]
   sds     <- data$sds[, g1_ids]
   count_n <- data$count_n[g1_ids]
   num_runs<- dim(means)[1]
+  
+  #########################################
+  ### NEW - FOR USER-PROVIDED GENE SETS ###
+  
+  if(!is.null(in_genes)){
+    use_genes = intersect(rownames(means),in_genes)
+    if(length(use_genes)<2){
+      showNotification("Warning: fewer than two genes included. Defaulting to normal differential expression calculation.", type = "warning")
+      in_genes = NULL
+    } else {
+      missing_genes = setdiff(in_genes,use_genes)
+      if(length(missing_genes)>0){
+        missing_genes <- paste(missing_genes,collapse=", ")
+        showNotification(paste("Warning:",missing_genes,"are not valid genes in this data set."), type = "warning")
+      }
+      sds      <- sds[use_genes,]
+      means    <- means[use_genes,]
+      num_runs <- dim(means)[1]
+    }
+  } 
+  
+  ### End new section
+  #########################################
   
   # Create the base data frame that's constant for all runs
   base_data_df <- data.frame(
@@ -206,9 +257,11 @@ find_trajectory_genes <- function(data, g1_ids) {
   pvalCutoff = max(0.1,sort(output$WLS_P_Value)[100])
   
   # Define the output table
-  output <- output %>%
-    filter(WLS_P_Value <= pvalCutoff) %>%
-    arrange(-WLS_T_Value)
+  if(is.null(in_genes)){
+    output <- output %>%
+      filter(WLS_P_Value <= pvalCutoff) %>%
+      arrange(-WLS_T_Value)
+  }
   
   # Round to N significant digits
   output <- signif(output,4)

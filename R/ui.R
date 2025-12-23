@@ -150,14 +150,20 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                             h4("Foreground cell types:"),
                             verbatimTextOutput("currentFilterIDs"),  
                             fluidRow(
-                              column(6,
+                              column(4,
                                      actionButton("clearFilter", "Clear Foreground Filter")
                               ),
-                              column(6,
+                              column(4,
                                      actionButton(
                                        "find_degenes",
                                        "Find Relevant Genes",
                                        style = "color: #fff; background-color: #39B54A; border-color: #006838; font-weight: bold;"),
+                              ),
+                              column(4,
+                                     actionButton(
+                                       "known_genes",
+                                       "Provide a gene list",
+                                       style = "color: #fff; background-color: #8E4585; border-color: #006838; font-weight: bold;"),
                               )
                             ),
                             

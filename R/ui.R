@@ -98,6 +98,22 @@ ui <- function(request) {   # Note that I might need to remove "function(request
       }
       "))),
       
+      tags$head(
+        tags$style(HTML("
+          .shiny-notification {
+            position: fixed;
+            top: 30%;             /* Move it toward the center */
+            left: 35%;
+            width: 30%;           /* Make it wider */
+            font-size: 24px;      /* Much larger font */
+            font-weight: bold;
+            background-color: #800080 !important; /* Purple background */
+            color: white !important;
+            border: 5px solid #301934;
+         }
+       "))
+      ),
+      
       #useShinyjs(),  # shinyjs not currently used
       
       fluidRow(width = 12,
@@ -105,6 +121,11 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                box(title = "Select data set",
                    solidHeader = TRUE, status = "primary", width = 12,
                    collapsible = TRUE, collapsed = FALSE,
+                   fluidRow(
+                     column(11,
+                            uiOutput("dataset_description")
+                     )
+                   ),
                    fluidRow(
                      column(6,
                             uiOutput("select_category")
@@ -114,19 +135,14 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                      ),
                    ),
                    fluidRow(
-                     column(8,
+                     column(3,
+                            fileInput("database_upload", "UPLOAD")
+                     ),
+                     column(7,
                             uiOutput("database_textbox")
                      ),
                      column(2,
-                            fileInput("database_upload", "or UPLOAD")
-                     ),
-                     column(2,
                             uiOutput("checkInput")
-                     )
-                   ),
-                   fluidRow(
-                     column(11,
-                            uiOutput("dataset_description")
                      )
                    ),
                ),
@@ -149,6 +165,7 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                             ),
                             h4("Foreground cell types:"),
                             verbatimTextOutput("currentFilterIDs"),  
+                            p("After adjusting your filters, press the green or purple button and then scroll down."),
                             fluidRow(
                               column(4,
                                      actionButton("clearFilter", "Clear Foreground Filter")

@@ -19,6 +19,20 @@ generate_dot_plot <- function(input, data, g1_ids, g2_ids, genes){
       keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
       keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
       g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
+      
+      # Deal with edge case where all cell types in a given background are selected (and therefore there are 0 background types)
+      if(length(g2_ids)==length(g1_ids)){
+        if(length(hierarchy)>=(which(hierarchy==level)+2)){
+          showNotification("Warning: no background types one level above. Setting background as two levels above.", type = "warning")
+          level2 <- hierarchy[which(hierarchy==level)+2]
+          keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
+          keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
+          g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
+        } else{
+          showNotification("Error: no background types available. Please select different options.", type = "warning")
+        }
+      }
+      
     }
   }
   

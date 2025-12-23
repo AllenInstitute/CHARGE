@@ -24,8 +24,17 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 	    keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
 	    g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
 	    
-	    if(length(g2_ids)==0){
-	      
+	    # Deal with edge case where all cell types in a given background are selected (and therefore there are 0 background types)
+	    if(length(g2_ids)==length(g1_ids)){
+	      if(length(hierarchy)>=(which(hierarchy==level)+2)){
+	        showNotification("Warning: no background types one level above. Setting background as two levels above.", type = "warning")
+	        level2 <- hierarchy[which(hierarchy==level)+2]
+	        keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
+	        keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
+	        g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
+	      } else{
+	        showNotification("Error: no background types available. Please select different options.", type = "warning")
+	      }
 	    }
 	    
 	  }
@@ -33,6 +42,8 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 	
 	# Filter g2 to remove any overlap with g1
   g2_ids <- setdiff(g2_ids, g1_ids)
+  
+  write(paste("Number of g2_ids:",length(g2_ids)),stderr())
 
   # Total number of cells per group
   g1_n <- sum(count_n[names(count_n) %in% g1_ids])
@@ -169,6 +180,12 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 
 # This function defines and returns genes and associated statistics for genes showing a trajectory pattern in a single ordered set of cell types.
 find_trajectory_genes <- function(data, g1_ids, in_genes = NULL) {
+  
+  # Deal with edge case where only one cell type is selected
+  if(length(g1_ids)<=1){
+    showNotification("Error: At least two cell types are required to define a trajectory.", type = "warning")
+    return(data.frame())
+  }
   
   ## Define variables
   means   <- data$means[, g1_ids]

@@ -178,7 +178,8 @@ server <- function(input, output, session) {
    output$dataset_description <- renderUI({
     req(init$vals)
     
-    text_desc = "README: Select a category and a data set from the boxes above -OR- to compare your own annotation data, choose 'Enter your own location' from the 'Select annotation category' and enter the location of your data file or upload a file yourself. Once a data set is selected, wait for the panels below to refresh."
+    header_text = "READ ME"
+    text_desc = "Select a category and a data set from the boxes above -OR- to compare your own annotation data, choose 'Enter your own location' from the 'Select annotation category' and enter the location of your data file or upload a file yourself. Once a data set is selected, wait for the panels below to refresh."
     
     print("input$select_textbox")
     print(input$select_textbox)
@@ -187,21 +188,25 @@ server <- function(input, output, session) {
     
       # If a stored db exists, pull the value from init$vals
       if(length(init$vals[["select_textbox"]]) > 0){
+        header_text = "READ ME"
         text_desc <- init$vals[["select_textbox"]]
       } else {
         
         if (input$select_textbox == 'Enter your own location') {
+          header_text = "Upload user-provided data"
           text_desc = "User-provided data set file, created using the 'chargeTaxonomy' R function (see GitHub page for details)."
         } else if (input$select_textbox == 'Select comparison table...') {
           # Do nothing... text_desc should remain as initialized above
+          header_text = "READ ME"
         } else {
+          header_text = "Dataset description"
           text_desc = table_info[table_info$table_name==input$select_textbox,"description"]
         }
       }
     }
     
     # Return the description text
-    div(style = "font-size:14px;", strong("Dataset description"),br(),text_desc)
+    div(style = "font-size:14px;", strong(header_text),br(),text_desc,p(" "))
     
   })
   
@@ -606,6 +611,10 @@ server <- function(input, output, session) {
     ))
     
   })
+  
+  # If filters are cleared, reset this
+  observeEvent(input$clearFilter, { last_clicked(NULL) })
+  
   
   observeEvent(input$submit_data, {
     # Validation: Ensure input isn't empty

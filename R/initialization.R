@@ -6,13 +6,13 @@ table_names <- c(
   "Middle temporal gyrus (2018): SMART-seq",
   "Primary motor cortex (2020): SMART-seq",
   "Multiple neocortical areas (2019): SMART-seq",
-  "Comparative LGN (2018): SMART-seq",
+  "Comparative LGN (2018): SMART-seq, human data",
   "Whole cortex and hippocampus (2021): 10X seq",
   "Whole cortex and hippocampus (2021): SMART-seq",
   "V1 & ALM (2018): SMART-seq",
-  "Comparative LGN (2018): SMART-seq",
+  "Comparative LGN (2018): SMART-seq, mouse data",
   "Consensus Basal Ganglia (2025): 10x seq, macaque data",
-  "Comparative LGN (2018): SMART-seq"
+  "Comparative LGN (2018): SMART-seq, macaque data"
 )
 
 #... what category each table is included in on the main page?

@@ -23,6 +23,11 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 	    keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
 	    keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
 	    g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
+	    
+	    if(length(g2_ids)==0){
+	      
+	    }
+	    
 	  }
 	}
 	

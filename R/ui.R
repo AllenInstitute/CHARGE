@@ -202,6 +202,18 @@ ui <- function(request) {   # Note that I might need to remove "function(request
         withSpinner(plotOutput("dotplot", height = "800px"))
       )),   
       
+      # For downloading the dot plot
+      fluidRow(
+        column(8,
+               strong("Options and download button for the DOT OR TRAJECTORY PLOT:"),
+               fluidRow(
+                 column(3,textInput("dlw","Width (in)",12)),
+                 column(3,textInput("dlh","Height (in)",8)),
+                 column(3,textInput("dlf","Font (pt)",10)),
+                 column(3,downloadButton('CHARGE_gene_plot',"Download PDF"))
+               )
+        )
+      ),
       
       fluidRow(
         div(
@@ -215,7 +227,7 @@ ui <- function(request) {   # Note that I might need to remove "function(request
           div(
             conditionalPanel(
               condition = "input.gene_set_enrichment > 0",
-              p("Enrichment is a go!")
+              p("Enrichment is a go! This process can take up to a minute.")
             ),
           ),
           div(
@@ -226,7 +238,21 @@ ui <- function(request) {   # Note that I might need to remove "function(request
       
       conditionalPanel(
         condition = "input.gene_set_enrichment > 0",
-        plotOutput("enrichment_plot",height = "400px")
+        plotOutput("enrichment_plot",height = "400px"),
+        
+        # For downloading the enrichment plot
+        fluidRow(
+          column(8,
+                 strong("Options and download button for the GO ENRICHMENT PLOT:"),
+                 fluidRow(
+                   column(3,textInput("enrichment_dlw","Width (in)",12)),
+                   column(3,textInput("enrichment_dlh","Height (in)",8)),
+                   column(3,textInput("enrichment_dlf","Font (pt)",10)),
+                   column(3,downloadButton('CHARGE_enrichment_plot',"Download PDF"))
+                 )
+          )
+        ),
+        
       ),
       
       fluidRow(width = 12, br(), br())

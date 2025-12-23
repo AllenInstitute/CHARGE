@@ -821,6 +821,33 @@ server <- function(input, output, session) {
     
   })
   
+  output$CHARGE_gene_plot <- downloadHandler(
+    filename = "CHARGE_gene_plot.pdf",
+    content = function(file) {
+      req(get_genes_dotplot())
+      req(rv_anno())
+      
+      top10_genes <- get_genes_dotplot()
+      data <- rv_anno()
+      
+      if(input$background_type=="Trajectory analysis"){
+        plot_save <- generate_trajectory_plot(data, rv_sunburst$selected_nodes$foreground, top10_genes)
+      } else {
+        plot_save <- generate_dot_plot(input, data, rv_sunburst$selected_nodes$foreground, rv_sunburst$selected_nodes$background, top10_genes)
+      }
+      
+      plot_save <- plot_save + theme(text = element_text(size = as.numeric(input$dlf)))
+
+      ggsave(file, 
+             plot = plot_save,
+             width = as.numeric(input$dlw), 
+             height = as.numeric(input$dlh),
+             useDingbats = FALSE)
+    }
+  )
+  
+  
+  
   
   ##################################################
   #####          GENE SET ENRICHMENT           ##### 
@@ -932,6 +959,37 @@ server <- function(input, output, session) {
       dotplot(results, showCategory = 10, title = "Gene Ontology Enrichment Analysis") 
     }
   })
+  
+  
+  output$CHARGE_enrichment_plot <- downloadHandler(
+    filename = "CHARGE_enrichment_plot.pdf",
+    content = function(file) {
+      # Get the results from the reactive expression
+      results <- enrichment_result()
+      save(results,file="tmp.RData")
+      
+      # Check if the enrichment result is a valid object with significant hits
+      if (is.null(results) || !inherits(results, "enrichResult") || nrow(results) == 0) {
+        # Return a blank plot with a message if no significant results are found
+        plot_save <- ggplot() +
+          annotate("text", x = 0.5, y = 0.5, label = "No significant enrichment results found.",
+                   size = 5, color = "grey50") +
+          theme_void()
+      } else {
+        # Use dotplot from clusterProfiler to visualize the results
+        plot_save <- dotplot(results, showCategory = 10, title = "Gene Ontology Enrichment Analysis") 
+      }
+      
+      plot_save <- plot_save + theme(text = element_text(size = as.numeric(input$enrichment_dlf)))
+      
+      ggsave(file, 
+             plot = plot_save,
+             width = as.numeric(input$enrichment_dlw), 
+             height = as.numeric(input$enrichment_dlh),
+             useDingbats = FALSE)
+    }
+  )
+  
   
 
 }

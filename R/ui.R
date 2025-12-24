@@ -127,23 +127,28 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                      )
                    ),
                    fluidRow(
-                     column(6,
-                            uiOutput("select_category")
+                     #column(6,
+                    #        uiOutput("select_category")
+                    # ),
+                     column(8,
+                            selectizeInput(
+                              inputId = "select_textbox",
+                              label   = "Choose an existing data set (or select 'Enter your own location')",
+                              choices = NULL
+                            )
                      ),
-                     column(6,
-                            uiOutput("select_textbox")
-                     ),
+                     column(4,
+                            uiOutput("checkInput")
+                     )
                    ),
                    fluidRow(
                      column(3,
                             fileInput("database_upload", "UPLOAD")
                      ),
-                     column(7,
+                     column(6,
                             uiOutput("database_textbox")
                      ),
-                     column(2,
-                            uiOutput("checkInput")
-                     )
+                     bookmarkButton(label = "Save Current View") # The button
                    ),
                ),
                

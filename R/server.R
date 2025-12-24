@@ -2,14 +2,14 @@ suppressPackageStartupMessages({
   # NOTE: ALL LIBRARIES LOADED FROM ui.R
 })
 options(stringsAsFactors = F)
-options(shiny.maxRequestSize = 1 * 1024^3)  # 1GB max For uploading files
+options(shiny.maxRequestSize = 1.9 * 1024^3)  # 1.9GB max For uploading files, which I believe is just below the browser limit
 
 source("initialization.R")
 source("sunburst.R")
 source("de_genes_functions.R")
 source("group_dot_plots.R")
 
-#enableBookmarking("url")  # It was "server", but it doesn't seem to work either way
+enableBookmarking("url")
 
 guess_type <- function(x) {
   if(try(sum(is.na(as.numeric(x))) > 0,silent = T)) {
@@ -53,55 +53,68 @@ server <- function(input, output, session) {
   # then from URL parsing
 
   observe({
-    
-    # default values
-    # defined in the default_vals list before the server() call, above.
     vals <- default_vals
     
-    # URL values
-    # defined in the URL
-    # These supercede defaults
-    if(length(session$clientData$url_search) > 0) {
+    if (nzchar(session$clientData$url_search)) {
+      query <- parseQueryString(session$clientData$url_search)
       
-      query <- as.list(parseQueryString(session$clientData$url_search))
+      query <- lapply(query, function(x) {
+        if (length(x) == 0) return(NULL)
+        gsub('^"|"$', '', x)
+      })
       
-      for(val in names(query)) {
-        vals[[val]] <- query[[val]]
+      for (nm in names(query)) {
+        vals[[nm]] <- query[[nm]]
       }
     }
     
     init$vals <- vals
-    
   })
+  
   
   
   # Direct link based on input parsing
   # This can be used to provide a direct URL to users that can be bookmarked.
-  output$url <- renderUI({
-    req(input)
-    url <- build_url(session, input)
-    a("Direct Link", href = url)
-  })
+  # output$url <- renderUI({
+  #   req(input)
+  #   url <- build_url(session, input)
+  #   a("Direct Link", href = url)
+  # })
+  # 
+  # 
+  # output$show_url <- renderText("")
+  # observeEvent(input$bookmark_url, {
+  #   req(input)
+  #   url <- build_url(session, input)
+  #   output$show_url <- renderText(url)
+  # })
   
   
-  output$show_url <- renderText("")
-  observeEvent(input$bookmark_url, {
-    req(input)
-    url <- build_url(session, input)
-    output$show_url <- renderText(url)
-  })
-  
- 
-  updateSelectInput(session, inputId = "select_category", label = "Choose a category:", choices = names(table_name)) # "Enter your own location"
-  
-  observeEvent(input$select_category, {
-    # Choose a value from the default table, if selected
-    # This is updated to be a list of lists
-    if(length(input$select_category)>0) category = input$select_category
-    updateSelectInput(session, inputId = "select_textbox", label = "Choose an existing data set:", choices = table_name[[category]])
+  observe({
+    # Get all current input IDs
+    all_inputs <- names(input)
     
+    # Exclude everything EXCEPT 'target_variable'
+    exclude_list <- all_inputs[all_inputs != "select_textbox"]
+    
+    setBookmarkExclude(exclude_list)
   })
+ 
+  #updateSelectInput(session, inputId = "select_category", label = "Choose a category:", choices = names(table_name)) # "Enter your own location"
   
+  # observeEvent(input$select_category, {
+  #   # Choose a value from the default table, if selected
+  #   # This is updated to be a list of lists
+  #   if(length(input$select_category)>0) category = input$select_category
+  #   updateSelectInput(session, inputId = "select_textbox", label = "Choose an existing data set:", choices = table_name[[category]])
+  #   
+  # })
+  
+  # updateSelectInput(session, 
+  #                   inputId = "select_textbox", 
+  #                   label = "Choose an existing data set (or select 'Enter your own location')", 
+  #                   choices = c("Select data set...",table_info$table_name,"Enter your own location")
+  #                   )
   
   #########################
   ## General UI Elements ##
@@ -118,37 +131,51 @@ server <- function(input, output, session) {
   # input$db - character object
   # 
   
-   output$select_category <- renderUI({
-     req(init$vals)
-     
-     id <- "select_category"
-     #write("SELECT CATEGORY",stderr())
-   
-     initial <- NULL
-     if(!is.null(init$vals[[id]]))
-       initial <- init$vals[[id]]
-     #write(initial,stderr())
-   
-     selectInput("select_category", "choose a category", choices = names(table_name), selected=initial)
-     
-   })
+   # output$select_category <- renderUI({
+   #   req(init$vals)
+   #   
+   #   id <- "select_category"
+   #   #write("SELECT CATEGORY",stderr())
+   # 
+   #   initial <- NULL
+   #   if(!is.null(init$vals[[id]]))
+   #     initial <- init$vals[[id]]
+   #   #write(initial,stderr())
+   # 
+   #   selectInput("select_category", "choose a category", choices = names(table_name), selected=initial)
+   #   
+   # })
   
-  output$select_textbox <- renderUI({
-    req(init$vals)
-    
-    id <- "select_textbox"
-    #write("SELECT TABLE",stderr())
-    
-    initial <- NULL
-    if(!is.null(init$vals[[id]]))
-      initial <- init$vals[[id]]
-    
-    #write(initial,stderr())
-    selectizeInput("select_textbox", "select a table", choices = table_name, selected=initial)
-    
-  })
   
-
+  observeEvent(init$vals, {
+    req(table_info$table_name)
+    
+    choices <- c(
+      "Select data set...",
+      table_info$table_name,
+      "Enter your own location"
+    )
+    
+    selected <- init$vals[["select_textbox"]]
+    if (length(selected) == 0) selected <- NULL
+    
+    #showNotification(paste("Applying select_textbox =", selected %||% "NULL"))
+    
+    if (!is.null(selected) && !(selected %in% choices)) {
+      warning("select_textbox value not found in choices: ", selected)
+      selected <- NULL
+    }
+    
+    updateSelectizeInput(
+      session,
+      inputId = "select_textbox",
+      choices = choices,
+      selected = selected,
+      server = TRUE
+    )
+  }, once = TRUE)
+  
+  
   output$database_textbox <- renderUI({
     req(init$vals)
     
@@ -187,22 +214,22 @@ server <- function(input, output, session) {
     if (length(input$select_textbox)>0){
     
       # If a stored db exists, pull the value from init$vals
-      if(length(init$vals[["select_textbox"]]) > 0){
-        header_text = "READ ME"
-        text_desc <- init$vals[["select_textbox"]]
-      } else {
+      #if(length(init$vals[["select_textbox"]]) > 0){
+      #  header_text = "READ ME"
+      #  text_desc <- init$vals[["select_textbox"]]
+      #} else {
         
         if (input$select_textbox == 'Enter your own location') {
           header_text = "Upload user-provided data"
           text_desc = "User-provided data set file, created using the 'chargeTaxonomy' R function (see GitHub page for details)."
-        } else if (input$select_textbox == 'Select comparison table...') {
+        } else if (input$select_textbox == 'Select data set...') {
           # Do nothing... text_desc should remain as initialized above
           header_text = "READ ME"
         } else {
           header_text = "Dataset description"
           text_desc = table_info[table_info$table_name==input$select_textbox,"description"]
         }
-      }
+      #}
     }
     
     # Return the description text

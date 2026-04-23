@@ -20,68 +20,68 @@ ui <- function(request) {   # Note that I might need to remove "function(request
     dashboardHeader(title = "Cell HierARchy Gene Explorer (CHARGE)", titleWidth = 500),
     
     dashboardSidebar(title = tags$img(src='CHARGE_logo.png', width = '225', style= 'display: block; margin-left: auto; margin-right: auto;'), #), #disable = TRUE
-    
-      width = 250,
-                  
-      h3("What is CHARGE?"),
-      p("Cell HierARchy Gene Explorer (CHARGE) is an interactive tool for identifying genes of potential biological interest in a cell type taxonomy. CHARGE uses fast, cluster-centric approaches to find global or local marker genes, differentially expressed genes, and genes following pre-defined or user selected gradients. Outputs of CHARGE include basic visualization of interesting genes and download of gene names and analysis statistics. CHARGE emphasizes speed and usability over statistical rigor, and we encourage users to explore cell level data in the Allen Brain Cell Atlas, CELLxGENE, or related tools."),
-
-      h3("Get started"),
-      
-      actionButton(inputId = "usecase", 
-                   icon = icon("circle-play", lib = "font-awesome"), 
-                   a("COMING SOON!",
-                     style="color: #000000; border-color: #2e6da4",
-                     target = "_blank", 
-                     href="https://portal.brain-map.org/")
-      ),
-      
-      h3("Contribute"),
-      
-      actionButton(inputId = "email1", 
-                   icon = icon("envelope", lib = "font-awesome"), 
-                   a("PROVIDE FEEDBACK", 
-                     style="color: #000000; border-color: #2e6da4",
-                     href="mailto:jeremym@alleninstitute.org?
+                     
+                     width = 250,
+                     
+                     h3("What is CHARGE?"),
+                     p("Cell HierARchy Gene Explorer (CHARGE) is an interactive tool for identifying genes of potential biological interest in a cell type taxonomy. CHARGE uses fast, cluster-centric approaches to find global or local marker genes, differentially expressed genes, and genes following pre-defined or user selected gradients. Outputs of CHARGE include basic visualization of interesting genes and download of gene names and analysis statistics. CHARGE emphasizes speed and usability over statistical rigor, and we encourage users to explore cell level data in the Allen Brain Cell Atlas, CELLxGENE, or related tools."),
+                     
+                     h3("Get started"),
+                     
+                     actionButton(inputId = "usecase", 
+                                  icon = icon("circle-play", lib = "font-awesome"), 
+                                  a("COMING SOON!",
+                                    style="color: #000000; border-color: #2e6da4",
+                                    target = "_blank", 
+                                    href="https://portal.brain-map.org/")
+                     ),
+                     
+                     h3("Contribute"),
+                     
+                     actionButton(inputId = "email1", 
+                                  icon = icon("envelope", lib = "font-awesome"), 
+                                  a("PROVIDE FEEDBACK", 
+                                    style="color: #000000; border-color: #2e6da4",
+                                    href="mailto:jeremym@alleninstitute.org?
                                   body=''
                                   &subject='CHARGE' app comments")
-      ),
-      actionButton(inputId = "GitHub", 
-                   icon = icon("code", lib = "font-awesome"), 
-                   a("ACCESS SOURCE CODE",
-                     style="color: #000000; border-color: #2e6da4",
-                     target = "_blank", 
-                     href="https://github.com/AllenInstitute/CHARGE/")
-      ),
-
-      br(),
-      h4("Click the three lines next to the title above to minimize this sidebar."),
-      br(),
-      p("----------------"),
-      br(),
-      h3("Acknowledgements"),
-      p("App developed by Jeremy Miller using some original code developed by Lucas Graybuck and Cindy van Velthoven, and connects to the AIT format developed in collaboration with Nelson Johansen and Inkar Kapen.  Included tables developed through BICAN."),
-      br(),
-      p("If you would like to contribute to this app, please reach out via email or GitHub using the links above."),
-      br()
+                     ),
+                     actionButton(inputId = "GitHub", 
+                                  icon = icon("code", lib = "font-awesome"), 
+                                  a("ACCESS SOURCE CODE",
+                                    style="color: #000000; border-color: #2e6da4",
+                                    target = "_blank", 
+                                    href="https://github.com/AllenInstitute/CHARGE/")
+                     ),
+                     
+                     br(),
+                     h4("Click the three lines next to the title above to minimize this sidebar."),
+                     br(),
+                     p("----------------"),
+                     br(),
+                     h3("Acknowledgements"),
+                     p("App developed by Jeremy Miller using some original code developed by Lucas Graybuck and Cindy van Velthoven, and connects to the AIT format developed in collaboration with Nelson Johansen and Inkar Kapen.  Included tables developed through BICAN."),
+                     br(),
+                     p("If you would like to contribute to this app, please reach out via email or GitHub using the links above."),
+                     br()
     ),
     
     dashboardBody(
-    
-    # Replace with correct google-analytics code block and html file below if I decided to use it.
-    #   tags$head(includeHTML("google-analytics.html"),  # Tag for general Google Analytics!
-    #             tags$script('var dimension = [0, 0];
-    #                       $(document).on("shiny:connected", function(e) {
-    #                           dimension[0] = window.innerWidth;
-    #                           dimension[1] = window.innerHeight;
-    #                           Shiny.onInputChange("dimension", dimension);
-    #                       });
-    #                       $(window).resize(function(e) {
-    #                           dimension[0] = window.innerWidth;
-    #                           dimension[1] = window.innerHeight;
-    #                           Shiny.onInputChange("dimension", dimension);
-    #                       });
-    #                       ')),
+      
+      # Replace with correct google-analytics code block and html file below if I decided to use it.
+      #   tags$head(includeHTML("google-analytics.html"),  # Tag for general Google Analytics!
+      #             tags$script('var dimension = [0, 0];
+      #                       $(document).on("shiny:connected", function(e) {
+      #                           dimension[0] = window.innerWidth;
+      #                           dimension[1] = window.innerHeight;
+      #                           Shiny.onInputChange("dimension", dimension);
+      #                       });
+      #                       $(window).resize(function(e) {
+      #                           dimension[0] = window.innerWidth;
+      #                           dimension[1] = window.innerHeight;
+      #                           Shiny.onInputChange("dimension", dimension);
+      #                       });
+      #                       ')),
       
       # You can add custom CSS here
       tags$head(tags$style(HTML("
@@ -114,6 +114,26 @@ ui <- function(request) {   # Note that I might need to remove "function(request
        "))
       ),
       
+      
+      tags$head(
+        tags$script(HTML("
+          $(document).on('click', '#copy_share_link', function() {
+            var url = window.location.href;
+            navigator.clipboard.writeText(url).then(function() {
+              Shiny.setInputValue('link_copied', Math.random());
+            }).catch(function() {
+              var temp = document.createElement('input');
+              temp.value = url;
+              document.body.appendChild(temp);
+              temp.select();
+              document.execCommand('copy');
+              document.body.removeChild(temp);
+              Shiny.setInputValue('link_copied', Math.random());
+            });
+          });
+        "))
+      ),
+      
       #useShinyjs(),  # shinyjs not currently used
       
       fluidRow(width = 12,
@@ -128,8 +148,8 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                    ),
                    fluidRow(
                      #column(6,
-                    #        uiOutput("select_category")
-                    # ),
+                     #        uiOutput("select_category")
+                     # ),
                      column(8,
                             selectizeInput(
                               inputId = "select_textbox",
@@ -148,7 +168,9 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                      column(6,
                             uiOutput("database_textbox")
                      ),
-                     bookmarkButton(label = "Save Current View") # The button
+                     actionButton("copy_share_link", 
+                                  label = tagList(icon("share-nodes"), " Share Current View"),
+                                  style = "color: #fff; background-color: #8E4585; border-color: #301934; font-weight: bold;")
                    ),
                ),
                
@@ -201,7 +223,7 @@ ui <- function(request) {   # Note that I might need to remove "function(request
                      ),
                      
                    ),
-             ),
+               ),
       ),
       
       

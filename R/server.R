@@ -9,7 +9,7 @@ source("sunburst.R")
 source("de_genes_functions.R")
 source("group_dot_plots.R")
 
-enableBookmarking("url")
+# enableBookmarking("url")  # Replaced by custom URL state management
 
 guess_type <- function(x) {
   if(try(sum(is.na(as.numeric(x))) > 0,silent = T)) {
@@ -38,7 +38,7 @@ tooltip_data <- read.csv("table_column_definitions.csv", stringsAsFactors = FALS
 ######################################################
 
 server <- function(input, output, session) {
-
+  
   ###########################
   ##  State Initialization ##
   ###########################
@@ -51,7 +51,7 @@ server <- function(input, output, session) {
   # First from default_vals,
   # then dropdown_vals,
   # then from URL parsing
-
+  
   observe({
     vals <- default_vals
     
@@ -90,16 +90,89 @@ server <- function(input, output, session) {
   # })
   
   
+  
+  ##############################################
+  ## URL STATE MANAGEMENT - Auto-update & Restore
+  ##############################################
+  
+  # Restore background_type from URL on init
+  observeEvent(init$vals, {
+    bt <- init$vals[["background_type"]]
+    if (!is.null(bt)) {
+      valid <- c("Foreground vs. local types",
+                 "Foreground vs. custom types",
+                 "Foreground vs. all other types",
+                 "Trajectory analysis")
+      if (bt %in% valid) {
+        updateSelectInput(session, "background_type", selected = bt)
+      }
+    }
+  }, once = TRUE, priority = -1)
+  
+  # Restore foreground/background cell type selections after data loads
+  observeEvent(rv_anno(), {
+    fg_str <- isolate(init$vals[["foreground"]])
+    if (!is.null(fg_str) && nzchar(fg_str)) {
+      fg <- strsplit(fg_str, "\\|")[[1]]
+      rv_sunburst$selected_nodes$foreground <- fg
+    }
+    bg_str <- isolate(init$vals[["background_nodes"]])
+    if (!is.null(bg_str) && nzchar(bg_str)) {
+      bg <- strsplit(bg_str, "\\|")[[1]]
+      rv_sunburst$selected_nodes$background <- bg
+    }
+  }, once = TRUE, priority = -1)
+  
+  # Auto-update browser URL when any key state changes
   observe({
-    # Get all current input IDs
-    all_inputs <- names(input)
+    # Reactive dependencies on all key state
+    stb <- input$select_textbox
+    hl  <- input$hierarchy_level
+    bt  <- input$background_type
+    ps  <- input$plot_selection
+    ls  <- input$list_selection
+    fg  <- rv_sunburst$selected_nodes$foreground
+    bg  <- rv_sunburst$selected_nodes$background
     
-    # Exclude everything EXCEPT 'target_variable'
-    exclude_list <- all_inputs[all_inputs != "select_textbox"]
+    params <- list()
     
-    setBookmarkExclude(exclude_list)
+    if (isTruthy(stb) && stb != "Select data set...")
+      params[["select_textbox"]] <- stb
+    if (isTruthy(hl))
+      params[["hierarchy_level"]] <- hl
+    if (isTruthy(bt) && bt != "Foreground vs. local types")
+      params[["background_type"]] <- bt
+    if (isTruthy(ps) && ps != "Sunburst")
+      params[["plot_selection"]] <- ps
+    if (isTruthy(ls) && ls != "Foreground")
+      params[["list_selection"]] <- ls
+    if (length(fg) > 0)
+      params[["foreground"]] <- paste(fg, collapse = "|")
+    if (length(bg) > 0)
+      params[["background_nodes"]] <- paste(bg, collapse = "|")
+    
+    if (length(params) > 0) {
+      qs <- paste0("?", paste(
+        mapply(function(n, v) {
+          paste0(URLencode(n, reserved = TRUE), "=",
+                 URLencode(as.character(v), reserved = TRUE))
+        }, names(params), params, USE.NAMES = FALSE),
+        collapse = "&"
+      ))
+    } else {
+      qs <- "?"
+    }
+    
+    updateQueryString(qs, mode = "replace", session = session)
   })
- 
+  
+  # Share link copy notification
+  observeEvent(input$link_copied, {
+    showNotification("Share link copied to clipboard!",
+                     type = "message", duration = 3)
+  })
+  
+  
   #updateSelectInput(session, inputId = "select_category", label = "Choose a category:", choices = names(table_name)) # "Enter your own location"
   
   # observeEvent(input$select_category, {
@@ -131,20 +204,20 @@ server <- function(input, output, session) {
   # input$db - character object
   # 
   
-   # output$select_category <- renderUI({
-   #   req(init$vals)
-   #   
-   #   id <- "select_category"
-   #   #write("SELECT CATEGORY",stderr())
-   # 
-   #   initial <- NULL
-   #   if(!is.null(init$vals[[id]]))
-   #     initial <- init$vals[[id]]
-   #   #write(initial,stderr())
-   # 
-   #   selectInput("select_category", "choose a category", choices = names(table_name), selected=initial)
-   #   
-   # })
+  # output$select_category <- renderUI({
+  #   req(init$vals)
+  #   
+  #   id <- "select_category"
+  #   #write("SELECT CATEGORY",stderr())
+  # 
+  #   initial <- NULL
+  #   if(!is.null(init$vals[[id]]))
+  #     initial <- init$vals[[id]]
+  #   #write(initial,stderr())
+  # 
+  #   selectInput("select_category", "choose a category", choices = names(table_name), selected=initial)
+  #   
+  # })
   
   
   observeEvent(init$vals, {
@@ -191,6 +264,13 @@ server <- function(input, output, session) {
       if((input$select_textbox=='Enter your own location')&(!is.null(upload2))){
         initial <- normalizePath(upload2$datapath)
       }
+      # Restore db path from URL for custom locations
+      if(input$select_textbox=='Enter your own location' && is.null(upload2)){
+        url_db <- isolate(init$vals[["db"]])
+        if (!is.null(url_db) && url_db != default_vals$db) {
+          initial <- url_db
+        }
+      }
     }
     
     textInput(inputId = id, 
@@ -202,7 +282,7 @@ server <- function(input, output, session) {
   
   
   # This function adds the data set description AND hides irrelevant visualization panels for preset data input
-   output$dataset_description <- renderUI({
+  output$dataset_description <- renderUI({
     req(init$vals)
     
     header_text = "READ ME"
@@ -212,23 +292,23 @@ server <- function(input, output, session) {
     print(input$select_textbox)
     
     if (length(input$select_textbox)>0){
-    
+      
       # If a stored db exists, pull the value from init$vals
       #if(length(init$vals[["select_textbox"]]) > 0){
       #  header_text = "READ ME"
       #  text_desc <- init$vals[["select_textbox"]]
       #} else {
-        
-        if (input$select_textbox == 'Enter your own location') {
-          header_text = "Upload user-provided data"
-          text_desc = "User-provided data set file, created using the 'chargeTaxonomy' R function (see GitHub page for details)."
-        } else if (input$select_textbox == 'Select data set...') {
-          # Do nothing... text_desc should remain as initialized above
-          header_text = "READ ME"
-        } else {
-          header_text = "Dataset description"
-          text_desc = table_info[table_info$table_name==input$select_textbox,"description"]
-        }
+      
+      if (input$select_textbox == 'Enter your own location') {
+        header_text = "Upload user-provided data"
+        text_desc = "User-provided data set file, created using the 'chargeTaxonomy' R function (see GitHub page for details)."
+      } else if (input$select_textbox == 'Select data set...') {
+        # Do nothing... text_desc should remain as initialized above
+        header_text = "READ ME"
+      } else {
+        header_text = "Dataset description"
+        text_desc = table_info[table_info$table_name==input$select_textbox,"description"]
+      }
       #}
     }
     
@@ -237,7 +317,7 @@ server <- function(input, output, session) {
     
   })
   
-
+  
   
   ##################################
   ## Loading tables from input$db ##
@@ -263,47 +343,47 @@ server <- function(input, output, session) {
   #
   # rv_anno() - a data.frame
   #
-   rv_anno <- reactive({
-     req(rv_path())
-     file = rv_path()
-     write("Reading file.", stderr())
-     
-     # THIS IS WHERE THE DATA GETS READ IN.  THERE SHOULD PROBABLY BE MORE CHECKS OF PROPER FORMAT.
-     if(substr(file,1,2)=="s3"){
-       ## READ FROM s3 bucket
-       file2    = substr(file,6,10000)
-       file2    = strsplit(file2,"/")[[1]]
-       bucket   = file2[1]
-       filename = paste(file2[2:length(file2)],collapse="/")
-
-       write("filename:", stderr())
-       write(filename, stderr())
-       write("bucket:", stderr())
-       write(bucket, stderr())
-       
-       objIn = objects()
-       a = try({s3load(object = filename,bucket = bucket)})
-       if(class(a)=="try-error"){
-         write(paste("s3",file,"does not exist or cannot be accessed."))
-         return(NULL)
-       }
-       objOut = objects()
-       objs = setdiff(objOut,objIn)
-       
-     } else {
-       ## READ LOCALLY... THIS MIGHT NOT WORK
-       if(file.exists(file)){
-         objs <- load(file)
-       } else {
-         write(paste("Local",file,"does not exist."))
-         return(NULL)
-       }
-     }
-     eval(parse(text=paste0("data=list(",paste(objs,collapse=","),")")))  
-     names(data) <- objs
-     return(data)
+  rv_anno <- reactive({
+    req(rv_path())
+    file = rv_path()
+    write("Reading file.", stderr())
+    
+    # THIS IS WHERE THE DATA GETS READ IN.  THERE SHOULD PROBABLY BE MORE CHECKS OF PROPER FORMAT.
+    if(substr(file,1,2)=="s3"){
+      ## READ FROM s3 bucket
+      file2    = substr(file,6,10000)
+      file2    = strsplit(file2,"/")[[1]]
+      bucket   = file2[1]
+      filename = paste(file2[2:length(file2)],collapse="/")
+      
+      write("filename:", stderr())
+      write(filename, stderr())
+      write("bucket:", stderr())
+      write(bucket, stderr())
+      
+      objIn = objects()
+      a = try({s3load(object = filename,bucket = bucket)})
+      if(class(a)=="try-error"){
+        write(paste("s3",file,"does not exist or cannot be accessed."))
+        return(NULL)
+      }
+      objOut = objects()
+      objs = setdiff(objOut,objIn)
+      
+    } else {
+      ## READ LOCALLY... THIS MIGHT NOT WORK
+      if(file.exists(file)){
+        objs <- load(file)
+      } else {
+        write(paste("Local",file,"does not exist."))
+        return(NULL)
+      }
+    }
+    eval(parse(text=paste0("data=list(",paste(objs,collapse=","),")")))  
+    names(data) <- objs
+    return(data)
   }) # end rv_anno()
-   
+  
   
   # Check for valid input
   output$checkInput <- renderUI({
@@ -358,11 +438,19 @@ server <- function(input, output, session) {
   
   observeEvent(rv_hierarchy_options(), {
     hierarchy_options = rv_hierarchy_options()
+    
+    # Restore hierarchy_level from URL if valid, otherwise use first option
+    selected <- hierarchy_options[1]
+    url_val <- isolate(init$vals[["hierarchy_level"]])
+    if (!is.null(url_val) && url_val %in% hierarchy_options) {
+      selected <- url_val
+    }
+    
     updateSelectInput(session, 
                       inputId = "hierarchy_level", 
                       label = "Choose level of hierarchy:", 
                       choices = hierarchy_options,
-                      selected = hierarchy_options[1]
+                      selected = selected
     )
     
   })
@@ -375,7 +463,14 @@ server <- function(input, output, session) {
   
   
   output$plot_type_selection <- renderUI({
-
+    
+    # Restore plot_selection from URL if valid
+    selected <- "Sunburst"
+    url_val <- isolate(init$vals[["plot_selection"]])
+    if (!is.null(url_val) && url_val %in% c("Sunburst", "Constellation")) {
+      selected <- url_val
+    }
+    
     radioButtons(
       inputId = "plot_selection",
       label = "Choose plot selection type:",
@@ -383,12 +478,12 @@ server <- function(input, output, session) {
         "Sunburst" = "Sunburst",
         "Constellation" = "Constellation"
       ),
-      selected = "Sunburst", 
+      selected = selected, 
       inline = TRUE # Display buttons side-by-side
     )
     
   })
-
+  
   rv_sunburst <- reactiveValues(
     selected_nodes = list(foreground = character(0), background = character(0))
   )
@@ -472,7 +567,7 @@ server <- function(input, output, session) {
   # })
   
   
-
+  
   # This function sets the selected nodes
   observeEvent(event_data("plotly_click"), {
     
@@ -501,12 +596,12 @@ server <- function(input, output, session) {
     if(input$background_type=="Foreground vs. custom types")
       if(input$list_selection=="Comparison")
         which_list <- "background"
-        
+    
     selected_nodes <- rv_sunburst$selected_nodes[[which_list]]
     
     # Get the current set of selected nodes
     current_selected <- selected_nodes
-      
+    
     # Toggle the clicked node's ID in the filter
     if (clicked_node_id %in% current_selected) {
       # If already selected, remove it
@@ -596,6 +691,13 @@ server <- function(input, output, session) {
     if(input$background_type!="Foreground vs. custom types")
       return(NULL)
     
+    # Restore list_selection from URL if valid
+    selected <- "Foreground"
+    url_val <- isolate(init$vals[["list_selection"]])
+    if (!is.null(url_val) && url_val %in% c("Foreground", "Comparison")) {
+      selected <- url_val
+    }
+    
     radioButtons(
       inputId = "list_selection",
       label = "Choose cell type for:",
@@ -603,14 +705,14 @@ server <- function(input, output, session) {
         "Foreground" = "Foreground",
         "Comparison" = "Comparison"
       ),
-      selected = "Foreground", # Blue will be pre-selected (by its value "B")
+      selected = selected,
       inline = TRUE # Display buttons side-by-side
     )
     
   })
- 
   
-
+  
+  
   ##################################################
   #######   DIFFERENTIAL GENE CALULATIONS    #######
   #######              - OR -                #######
@@ -699,7 +801,7 @@ server <- function(input, output, session) {
     }
   })
   
-
+  
   output$de_table <- renderDataTable({
     req(calculate_de_genes())
     data_df = calculate_de_genes()
@@ -751,7 +853,7 @@ server <- function(input, output, session) {
       
     }
   )
-
+  
   output$downloadPlot <- downloadHandler(    
     
     filename = "sifter_heatmap.pdf",
@@ -873,7 +975,7 @@ server <- function(input, output, session) {
       }
       
       plot_save <- plot_save + theme(text = element_text(size = as.numeric(input$dlf)))
-
+      
       ggsave(file, 
              plot = plot_save,
              width = as.numeric(input$dlw), 
@@ -905,7 +1007,7 @@ server <- function(input, output, session) {
   
   # Reactive expression to store enrichment results
   enrichment_result <- eventReactive(input$gene_set_enrichment, {
-
+    
     req(calculate_de_genes())
     req(rv_anno())
     cat("gene set enrichment \n")
@@ -1027,7 +1129,7 @@ server <- function(input, output, session) {
   )
   
   
-
+  
 }
 
 

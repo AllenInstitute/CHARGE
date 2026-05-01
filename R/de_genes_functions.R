@@ -60,6 +60,7 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
     if(length(use_genes)<2){
       showNotification("Warning: fewer than two genes included. Defaulting to normal differential expression calculation.", type = "warning")
       in_genes = NULL
+      use_genes = all_genes
     } else {
       missing_genes = setdiff(in_genes,use_genes)
       if(length(missing_genes)>0){
@@ -166,9 +167,16 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 	output = cbind(output, rank_biserial_corr, overlap_coefficient)
 	output = output[,c(1:4,7:10,5:6)]
 	
+	## Add the URL 
+	URL <-   abc_atlas_gene_url(input$select_textbox)
+	output$linked_gene <- paste0(
+	  '<a href="', URL, '" target="_blank">',
+	  output$gene,
+	  '</a>'
+	)
+	
 	## Read gene categories (from function in separate file)
 	source("read_gene_lists.r", local=TRUE)
-	output$ABC_atlas___ = "Coming soon!"
 	rownames(output) = NULL
 	
 	# Return the table
@@ -179,7 +187,7 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 
 
 # This function defines and returns genes and associated statistics for genes showing a trajectory pattern in a single ordered set of cell types.
-find_trajectory_genes <- function(data, g1_ids, in_genes = NULL) {
+find_trajectory_genes <- function(data, dataset, g1_ids, in_genes = NULL) {
   
   # Deal with edge case where only one cell type is selected
   if(length(g1_ids)<=1){
@@ -199,8 +207,9 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL) {
   if(!is.null(in_genes)){
     use_genes = intersect(rownames(means),in_genes)
     if(length(use_genes)<2){
-      showNotification("Warning: fewer than two genes included. Defaulting to normal differential expression calculation.", type = "warning")
+      showNotification("Warning: fewer than two genes included. Defaulting to normal trajectory calculation.", type = "warning")
       in_genes = NULL
+      use_genes = rownames(means)
     } else {
       missing_genes = setdiff(in_genes,use_genes)
       if(length(missing_genes)>0){
@@ -211,7 +220,9 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL) {
       means    <- means[use_genes,]
       num_runs <- dim(means)[1]
     }
-  } 
+  } else {
+    use_genes = rownames(means)
+  }
   
   ### End new section
   #########################################
@@ -283,16 +294,27 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL) {
     output <- output %>%
       filter(WLS_P_Value <= pvalCutoff) %>%
       arrange(-WLS_T_Value)
+  } else {
+    output <- output[use_genes,]
   }
   
   # Round to N significant digits
   output <- signif(output,4)
   
-  ## Read gene categories (from function in separate file)
+  # Add the genes
   output <- data.frame(gene=rownames(output),output)
   rownames(output) <- NULL
+  
+  ## Add the URL 
+  URL <-   abc_atlas_gene_url(dataset)
+  output$linked_gene <- paste0(
+    '<a href="', URL, '" target="_blank">',
+    output$gene,
+    '</a>'
+  )
+  
+  ## Read gene categories (from function in separate file)
   source("read_gene_lists.r", local=TRUE)
-  output$ABC_atlas___ = "Coming soon!"
   rownames(output) = NULL
   
   # Return the table
@@ -394,6 +416,16 @@ calculate_overlap_coefficient <- function(x1, x2, n = 512) {
   intersection_area <- sum(pmin(f1, f2)) * (density1$x[2] - density1$x[1])
   
   return(intersection_area)
+}
+
+
+
+
+# This function returns a link to the ABC Atlas, either the generic one, or one related to the specific data set
+abc_atlas_gene_url <- function(dataset){
+  url = table_info[dataset,"url"]
+  if(is.na(url)) url = "https://knowledge.brain-map.org/abcatlas"
+  url
 }
 
 

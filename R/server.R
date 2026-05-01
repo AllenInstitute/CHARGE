@@ -769,7 +769,7 @@ server <- function(input, output, session) {
           
           if(input$background_type=="Trajectory analysis"){
             
-            find_trajectory_genes(data, rv_sunburst$selected_nodes$foreground)
+            find_trajectory_genes(data, input$select_textbox, rv_sunburst$selected_nodes$foreground)
             
           } else {
             
@@ -790,7 +790,7 @@ server <- function(input, output, session) {
           
           if(input$background_type=="Trajectory analysis"){
             
-            find_trajectory_genes(data, rv_sunburst$selected_nodes$foreground, in_genes = input_gene_set)
+            find_trajectory_genes(data, input$select_textbox, rv_sunburst$selected_nodes$foreground, in_genes = input_gene_set)
             
           } else {
             
@@ -806,6 +806,11 @@ server <- function(input, output, session) {
     req(calculate_de_genes())
     data_df = calculate_de_genes()
     
+    # Swap in the linked gene
+    gn <- data_df$linked_gene
+    data_df$gene <- gn
+    data_df <- data_df[,colnames(data_df)!="linked_gene"]
+    
     ## Dynamically determine tool tip definitions
     column_definitions <- sapply(colnames(data_df), function(col_name) {
       # Find the matching tooltip from the loaded data
@@ -817,7 +822,9 @@ server <- function(input, output, session) {
       return(match)
     }, USE.NAMES = FALSE)
     
-    datatable(data_df, filter = "top", 
+    datatable(data_df, 
+              filter = "top",
+              escape=FALSE,
               options = list(scrollX = TRUE, 
                              scrollY = TRUE, 
                              pageLength = 10, 

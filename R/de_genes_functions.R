@@ -282,12 +282,77 @@ find_trajectory_genes <- function(data, dataset, g1_ids, in_genes = NULL) {
   output <- results_df_lapply
   output$WLS_FDR <- p.adjust(output[,"WLS_P_Value"], method = "fdr")
   
-  # Add means
-  output$mean.expression = rowMeans(means)
+  # Add mean expression
+  output$Mean_Expression <- rowMeans(means)
+  
+  ############################################################
+  ## 1-change-point scan using summary stats
+  ## Direction determined by end-to-end difference.
+  ## CP_Z is signed: positive = increasing, negative = decreasing.
+  ############################################################
+  
+  k <- ncol(means)
+  if (k >= 2) {
+    
+    # Direction per gene from end-to-end difference
+    end_diff  <- means[, k] - means[, 1]
+    direction <- ifelse(is.finite(end_diff) & end_diff < 0, -1, 1)
+    
+    # Identify bad genes
+    bad_gene <- apply(!is.finite(means) | !is.finite(sds) | (sds <= 0), 1, any)
+    
+    # Inverse-variance weights: w = n / sd^2
+    vbar <- (sds^2) / matrix(count_n, nrow = nrow(sds), ncol = k, byrow = TRUE)
+    w    <- 1 / vbar
+    
+    # Row cumulative sums for prefix computation
+    if (requireNamespace("matrixStats", quietly = TRUE)) {
+      cw  <- matrixStats::rowCumsums(w)
+      cwy <- matrixStats::rowCumsums(w * means)
+    } else {
+      cw  <- t(apply(w, 1, cumsum))
+      cwy <- t(apply(w * means, 1, cumsum))
+    }
+    
+    # Split scan: compare groups 1..s vs (s+1)..k for each s = 1..(k-1)
+    w1 <- cw[, 1:(k-1), drop = FALSE];  w2 <- cw[, k] - w1
+    y1 <- cwy[, 1:(k-1), drop = FALSE]; y2 <- cwy[, k] - y1
+    zmat <- ((y2 / w2) - (y1 / w1)) / sqrt(1 / w1 + 1 / w2)
+    zmat <- zmat * direction
+    zmat[!is.finite(zmat)] <- NA_real_
+    
+    # Best split per gene (unsigned magnitude), then sign by direction
+    cp_z_abs <- apply(zmat, 1, function(x) if (all(is.na(x))) 0 else max(x, na.rm = TRUE))
+    cp_z     <- cp_z_abs * direction   # signed: negative = decreasing trajectory
+    cp_p     <- pnorm(-cp_z_abs)       # one-sided p from unsigned magnitude
+    
+    # Soft change-point center (dimension-safe)
+    zmat <- as.matrix(zmat)
+    wloc <- zmat; wloc[wloc < 0] <- 0; wloc <- wloc^2
+    denom <- rowSums(wloc, na.rm = TRUE)
+    numerator <- rep(0, nrow(wloc))
+    for (j in seq_len(ncol(wloc))) numerator <- numerator + wloc[, j] * j
+    cp_center <- numerator / pmax(1e-12, denom)
+    cp_center[denom <= 0] <- NA_real_
+    if (ncol(wloc) == 1) cp_center[] <- 1
+    
+    # Clean up bad genes
+    cp_z[bad_gene] <- 0; cp_p[bad_gene] <- 1; cp_center[bad_gene] <- NA_real_
+    
+    # Add to output
+    output$CP_Z       <- cp_z
+    output$CP_P_Value <- cp_p
+    output$CP_FDR     <- p.adjust(cp_p, method = "fdr")
+    output$CP_Center  <- cp_center
+  }
+  
+  ########################################################
+  ## END: 1-change-point scan
+  ########################################################
   
   # Hard-coded filters (could be added as input later)
-  
-  pvalCutoff = max(0.1,sort(output$WLS_P_Value)[100])
+  p100 <- sort(output$WLS_P_Value)[min(100, length(output$WLS_P_Value))]
+  pvalCutoff <- max(0.1, p100, na.rm = TRUE)
   
   # Define the output table
   if(is.null(in_genes)){
@@ -301,9 +366,11 @@ find_trajectory_genes <- function(data, dataset, g1_ids, in_genes = NULL) {
   # Round to N significant digits
   output <- signif(output,4)
   
-  # Add the genes
-  output <- data.frame(gene=rownames(output),output)
+  # Add the genes and reorder: gene, Mean_Expression first
+  output <- data.frame(gene = rownames(output), output)
   rownames(output) <- NULL
+  col_order <- c("gene", "Mean_Expression", setdiff(colnames(output), c("gene", "Mean_Expression")))
+  output <- output[, col_order]
   
   ## Add the URL 
   URL <-   abc_atlas_gene_url(dataset)

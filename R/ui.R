@@ -138,14 +138,30 @@ suppressPackageStartupMessages({
               padding-bottom: 20px !important;
               line-height: 20px !important;
             }
-        
-            .charge-app-title {
-              color: #ffffff;
-              font-size: 17px;
-              font-weight: 600;
+           
+            .main-header .navbar-custom-menu .navbar-nav > li.charge-app-title {
+              position: fixed !important;
+              top: 0;
+              left: 50vw;
+              transform: translateX(-50%);
+              height: 60px;
               line-height: 60px;
-              padding: 0 18px;
+              z-index: 2000;
+              float: none !important;
+              padding: 0;
+              margin: 0;
+              color: #ffffff;
+              font-size: 24px;      /* adjust larger/smaller here */
+              font-weight: 700;
               white-space: nowrap;
+              pointer-events: none; /* keeps links/buttons clickable underneath */
+              max-width: calc(100vw - 520px);
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            
+            .charge-app-title > span {
+              display: block;
             }
         
             .charge-nav-link > a {
@@ -158,11 +174,11 @@ suppressPackageStartupMessages({
             }
         
             @media (max-width: 900px) {
-              .charge-app-title {
-                font-size: 14px;
-                padding: 0 10px;
+              .main-header .navbar-custom-menu .navbar-nav > li.charge-app-title {
+                font-size: 16px;
+                max-width: calc(100vw - 120px);
               }
-        
+
               .charge-nav-link {
                 display: none !important;
               }

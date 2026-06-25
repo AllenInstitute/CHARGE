@@ -34,13 +34,17 @@ rig add 4.5.1
 rig add rtools45
 rig rstudio renv.lock
 ```
-This should set up and then launch RStudio with the correct package configurations. (The first two lines of code only need to be run once).
+This should set up and then launch RStudio with the correct package configurations. (The first two lines of code only need to be run once).  Note that if you go the `rig` route, you'll need to run this command the first time you launch R Studio:
+```
+install.packages("renv")
+renv::restore()
+```
 
 #### Run the app
 1. In RStudio, open the file `ui.R` and click the "Run App" button in the upper right corner of the screen
 2. Explore!
 
-The only difference between local and web versions is that the local version can point to locations on your local computer.  Since CHARGE'd data set files can be quite large, this may be necessary for files not located in a public S3 bucket.
+The only difference between local and web versions is that the local version can point to locations on your local computer.  Since CHARGE'd data set files can be quite large, this may be necessary for files not located in a public S3 bucket.  Also note that you cannot access the preset taxonomies if run locally.
 
 ## Reporting issues or suggestions
 

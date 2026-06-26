@@ -9,7 +9,10 @@ source("sunburst.R")
 source("de_genes_functions.R")
 source("group_dot_plots.R")
 
-enableBookmarking("url")
+observeEvent(input$bookmark, {
+  print("BOOKMARK BUTTON CLICKED")
+})
+
 
 guess_type <- function(x) {
   if(try(sum(is.na(as.numeric(x))) > 0,silent = T)) {
@@ -89,17 +92,67 @@ server <- function(input, output, session) {
   #   output$show_url <- renderText(url)
   # })
   
+  # NOTE: I JUST NOW COMMENTED THIS OUT. I MIGHT NEED TO RETURN IT (June 2026)
+  observe({  
+   # Get all current input IDs
+   all_inputs <- names(input)
+
+   # Keep only app states related to current selection
+   keep_list <- c(
+     # "Select data set" box
+     "select_textbox",
+     "db",
+     
+     # "Select cell types for analysis and analysis type" box
+     "hierarchy_level",
+     "plot_selection" ,
+     "background_type"
+     
+   )
   
-  observe({
-    # Get all current input IDs
-    all_inputs <- names(input)
-    
-    # Exclude everything EXCEPT 'target_variable'
-    exclude_list <- all_inputs[all_inputs != "select_textbox"]
-    
-    setBookmarkExclude(exclude_list)
+   exclude_list <- all_inputs[!(all_inputs %in% keep_list)]
+   
+   setBookmarkExclude(exclude_list)
   })
- 
+  
+  onBookmark(function(state) {
+    state$values$foreground <- paste(rv_sunburst$selected_nodes$foreground, collapse = "|")
+    state$values$background <- paste(rv_sunburst$selected_nodes$background, collapse = "|")
+  })
+  
+  onRestore(function(state) {
+    fg <- state$values$foreground
+    bg <- state$values$background
+    
+    if (!is.null(fg) && nzchar(fg)) {
+      rv_sunburst$selected_nodes$foreground <- strsplit(fg, "\\|")[[1]]
+    }
+    
+    if (!is.null(bg) && nzchar(bg)) {
+      rv_sunburst$selected_nodes$background <- strsplit(bg, "\\|")[[1]]
+    }
+  })
+  
+  ## NEW BOOKMARKING FUNCTIONALITY
+  observeEvent(input$save_view, {
+    session$doBookmark()
+  })
+  
+  onBookmarked(function(url) {
+    showModal(modalDialog(
+      title = "Share this link",
+      easyClose = TRUE,
+      tags$p("Press Ctrl+A then Ctrl+C to copy the link below:"),
+      tags$textarea(
+        style = "width:100%; height:80px;",
+        url
+      )
+    ))
+  })
+  
+  
+  #onBookmarked(function(url) {  #Can try this if the line below fails
+  
   #updateSelectInput(session, inputId = "select_category", label = "Choose a category:", choices = names(table_name)) # "Enter your own location"
   
   # observeEvent(input$select_category, {
@@ -456,7 +509,8 @@ server <- function(input, output, session) {
     }
     
     # RETURN PLOT
-    p
+    #p
+    event_register(p, "plotly_click")
     
   })
   

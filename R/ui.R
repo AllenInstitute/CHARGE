@@ -58,6 +58,20 @@ ui <- function(request) {
       ),
       width = 250,
       
+      actionButton(
+        "open_video_btn",
+        HTML("New to CHARGE?<br/>Watch this overview!"),
+        icon = icon("video"),
+        style = "font-size: 125%; 
+                            padding: 5px 5px; 
+                            width: 225px; /* Give it a specific width so margin: auto can work */
+                            display: block; /* Make it a block element */
+                            margin: 0 auto; /* Center the block element horizontally */
+                            text-align: center; 
+                            white-space: normal;",  
+        onclick = paste0("window.open('https://alleninstitute.github.io/CHARGE/CHARGE_overview.mp4', '_blank');")
+      ),
+      
       h3("What is CHARGE?"),
       p("Cell HierARchy Gene Explorer (CHARGE) is an interactive tool for identifying genes of potential biological interest in a cell type taxonomy. CHARGE uses fast, cluster-centric approaches to find global or local marker genes, differentially expressed genes, and genes following pre-defined or user selected gradients. Outputs of CHARGE include basic visualization of interesting genes and download of gene names and analysis statistics. CHARGE emphasizes speed and usability over statistical rigor, and we encourage users to explore cell level data in the Allen Brain Cell Atlas, CELLxGENE, or related tools."),
       
@@ -90,22 +104,19 @@ ui <- function(request) {
           target = "_blank",
           href = "https://github.com/AllenInstitute/CHARGE/")
       ),
-      
-      br(),
-      h4("Click the three lines next to the title above to minimize this sidebar."),
-      br(),
-      p("----------------"),
-      br(),
+      p("We encourage contributions via the above links."),
       h3("Acknowledgements"),
-      p("App developed by Jeremy Miller using some original code developed by Lucas Graybuck and Cindy van Velthoven, and connects to the AIT format developed in collaboration with Nelson Johansen and Inkar Kapen.  Included tables developed through BICAN."),
-      br(),
-      p("If you would like to contribute to this app, please reach out via email or GitHub using the links above."),
-      br()
+      p("App developed by Jeremy Miller using some original code developed by Lucas Graybuck and Cindy van Velthoven, and connects to the AIT format developed in collaboration with Nelson Johansen and Inkar Kapen.  Included tables developed through BICAN.")
     ),
     
     dashboardBody(
       
       tags$head(
+        
+        tags$title("CHARGE"),
+        tags$link(rel = "icon", type = "image/x-icon", href = "CHARGE.ico"),
+        tags$script(HTML("document.title = 'CHARGE';")),
+        
         tags$style(HTML("
 
           /* ==========================================================

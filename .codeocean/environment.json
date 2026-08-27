@@ -1,0 +1,28 @@
+{
+	"version": 1,
+	"base_image": "codeocean/r-studio:r-4.5.1-1.2204.0-rstudio-server-2025.05.1-513-ubuntu22.04",
+	"post_install": true,
+	"options": {
+		"registry_host_arg": true,
+		"git_ask_pass": true,
+		"mount_secrets": true
+	},
+	"env_variables": [
+		{
+			"name": "R_LIBS_USER",
+			"value": "/opt/renv/library"
+		},
+		{
+			"name": "RENV_PATHS_LIBRARY",
+			"value": "/opt/renv/library"
+		},
+		{
+			"name": "RENV_PATHS_CACHE",
+			"value": "/opt/renv/cache"
+		},
+		{
+			"name": "RENV_CONFIG_REPOS_OVERRIDE",
+			"value": "https://cloud.r-project.org"
+		}
+	]
+}

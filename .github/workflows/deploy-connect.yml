@@ -1,0 +1,134 @@
+name: Deploy CHARGE to Posit Connect
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "R/**"
+      - "renv.lock"
+      - ".github/workflows/deploy-connect.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-charge
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+
+    env:
+      RENV_PATHS_ROOT: ~/.cache/R/renv
+      RENV_CONFIG_REPOS_OVERRIDE: https://cloud.r-project.org
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.5.1"
+          use-public-rspm: true
+
+      - name: Restore renv environment
+        uses: r-lib/actions/setup-renv@v2
+        with:
+          cache-version: 1
+
+      - name: Verify deployment environment
+        shell: Rscript {0}
+        run: |
+          renv::load(".")
+          stopifnot(requireNamespace("rsconnect", quietly = TRUE))
+          cat(
+            "rsconnect:",
+            as.character(packageVersion("rsconnect")),
+            "\n"
+          )
+
+      - name: Prepare application directory
+        shell: bash
+        run: |
+          cp renv.lock R/renv.lock
+
+      - name: Generate deployment manifest
+        shell: Rscript {0}
+        run: |
+          renv::load(".")
+
+          options(
+            repos = c(
+              CRAN = "https://cloud.r-project.org"
+            )
+          )
+
+          Sys.setenv(
+            RENV_CONFIG_REPOS_OVERRIDE =
+              "https://cloud.r-project.org"
+          )
+
+          app_files <- list.files(
+            "R",
+            recursive = TRUE,
+            all.files = TRUE,
+            include.dirs = FALSE,
+            full.names = FALSE,
+            no.. = TRUE
+          )
+
+          app_files <- setdiff(
+            app_files,
+            c(
+              ".Rprofile",
+              ".Rhistory",
+              ".RData",
+              "manifest.json"
+            )
+          )
+
+          rsconnect::writeManifest(
+            appDir = "R",
+            appFiles = app_files,
+            dependencyResolution = "strict",
+            packageRepositoryResolutionR = "lax",
+            verbose = TRUE
+          )
+
+          manifest_text <- paste(
+            readLines(
+              file.path("R", "manifest.json"),
+              warn = FALSE
+            ),
+            collapse = "\n"
+          )
+
+          stopifnot(
+            !grepl(
+              "codeocean.internal",
+              manifest_text,
+              fixed = TRUE
+            )
+          )
+
+      - name: Verify deployment files
+        shell: bash
+        run: |
+          test -f renv.lock
+          test -f R/renv.lock
+          test -f R/manifest.json
+          test -f R/ui.R
+          test -f R/server.R
+
+      - name: Deploy to Posit Connect
+        uses: posit-dev/connect-actions/deploy@main
+        with:
+          connect-server: https://molgen-shiny.org
+          connect-api-key: ${{ secrets.CONNECT_API_KEY }}
+          content-guid: e6699831-7515-4078-8c0a-c46983e18de7
+          path: R
+          draft: false

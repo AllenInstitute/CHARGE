@@ -15,6 +15,9 @@ table_names <- c(
   "Comparative LGN (2018): Human, SMART-seq",
   "Comparative LGN (2018): Mouse, SMART-seq",
   "Comparative LGN (2018): Macaque, SMART-seq"
+  "Consensus Spinal Cord (2026): Human, SMART-seq",
+  "Consensus Spinal Cord (2026): Mouse, SMART-seq",
+  "Consensus Spinal Cord (2026): Macaque, SMART-seq"
 )
 
 #... what category each table is included in on the main page?
@@ -29,6 +32,9 @@ categories <- factor(c(
   "Mouse brain cell types",
   "Mouse brain cell types",
   "Mouse brain cell types",
+  "Human brain cell types",
+  "Mouse brain cell types",
+  "Other mammalian brain cell types",
   "Human brain cell types",
   "Mouse brain cell types",
   "Other mammalian brain cell types"
@@ -57,7 +63,10 @@ table_locations <- c(
   paste0(S3_folder,"Mouse_VISp_ALM_SMART_seq_04042025_CHARGE.RData"),
   paste0(S3_folder,"Human_LGN_SMART_seq_04042025_CHARGE.RData"),
   paste0(S3_folder,"Mouse_LGN_SMART_seq_04042025_CHARGE.RData"),
-  paste0(S3_folder,"Macaque_LGN_SMART_seq_04042025_CHARGE.RData")
+  paste0(S3_folder,"Macaque_LGN_SMART_seq_04042025_CHARGE.RData"),
+  paste0(S3_folder,"CHARGE_SpC_Human_10102026.RData"),
+  paste0(S3_folder,"CHARGE_SpC_Mouse_10102026.RData"),
+  paste0(S3_folder,"CHARGE_SpC_Macaque_10102026.RData")
 )
 
 
@@ -87,10 +96,34 @@ descriptions   <- c(
   
   "Explore cell types in mouse dorsolateral geniculate complex (LGd) circa 2021 as described in Bakken, van Velthoven, Menon, et al, 2021 (eLife; https://doi.org/10.7554/eLife.64875)! Underlying data are available at https://portal.brain-map.org/atlases-and-data/rnaseq/comparative-lgn.",
   
-  "Explore cell types in macaque lateral geniculate nucleus (LGN) circa 2021 as described in Bakken, van Velthoven, Menon, et al, 2021 (eLife; https://doi.org/10.7554/eLife.64875)! Underlying data are available at https://portal.brain-map.org/atlases-and-data/rnaseq/comparative-lgn."
+  "Explore cell types in macaque lateral geniculate nucleus (LGN) circa 2021 as described in Bakken, van Velthoven, Menon, et al, 2021 (eLife; https://doi.org/10.7554/eLife.64875)! Underlying data are available at https://portal.brain-map.org/atlases-and-data/rnaseq/comparative-lgn.",
+
+  "THIS DATA SET IS STILL BEING TESTED. Explore cell types in HUMAN Spinal Cord. These data are part of a cross-species consensus taxonomy to be released soon on Allen Brain Map, and that are described as part of Schmitz, Johanesen, et al 2026 (bioRxiv; https://www.biorxiv.org/content/10.64898/2026.02.04.703852v1). Note that the constellation diagrams are currently not working, but that will not impact genes identified.",
+
+  "THIS DATA SET IS STILL BEING TESTED. Explore cell types in MOUSE Spinal Cord. These data are part of a cross-species consensus taxonomy to be released soon on Allen Brain Map, and that are described as part of Schmitz, Johanesen, et al 2026 (bioRxiv; https://www.biorxiv.org/content/10.64898/2026.02.04.703852v1). Note that the constellation diagrams are currently not working, but that will not impact genes identified.",
+
+  "THIS DATA SET IS STILL BEING TESTED. Explore cell types in MACAQUE Spinal Cord. These data are part of a cross-species consensus taxonomy to be released soon on Allen Brain Map, and that are described as part of Schmitz, Johanesen, et al 2026 (bioRxiv; https://www.biorxiv.org/content/10.64898/2026.02.04.703852v1). Note that the constellation diagrams are currently not working, but that will not impact genes identified."
   
 )
 
+web_urls <- c(
+    "BG_human",
+    "BG_macaque",
+    "BG_marmoset",
+    "MTG_human_SEAAD",
+    "MTG_human_Hodge",
+    "M1_human",
+    "Neocortex_human_2019",
+    "CortexHip_mouse_10x",
+    "CortexHip_mouse_SS",
+    "VispALM_mouse",
+    "LGN_human",
+    "LGN_mouse",
+    "LGN_macaque",
+    "SpC_human",
+    "SpC_mouse",
+    "SpC_macaque"
+)
 
 ############################################
 ## DO NOT EDIT ANYTHING BELOW THIS POINT! ##
@@ -101,7 +134,8 @@ categories = factor(c(as.character(categories)),levels = unique(c(levels(categor
 # Convert above into a data frame
 table_info <- data.frame(table_name   = table_names,
                          table_loc    = table_locations,
-                         description  = descriptions
+                         description  = descriptions,
+                         web_urls     = web_urls
 )
 
 # Convert table names into a nested list

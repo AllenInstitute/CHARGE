@@ -1,5 +1,5 @@
 # This function defines and returns genes and associated statistics for genes differentially expressed between a foreground and background set of cell types.
-find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
+find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=TRUE) {
 
   ## Define variables
   counts       <- data$counts
@@ -136,10 +136,15 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 	
 	# Define the output table
 	if(is.null(in_genes)){
-	  output <- output %>%
-	    filter(abs(prop_diff) > absPropDiff) %>%
-	    filter(gr1_mean + gr2_mean > meanSum) %>%
-	    arrange(-consensus_score)
+	  if(filter){
+	    output <- output %>%
+	      filter(abs(prop_diff) > absPropDiff) %>%
+	      filter(gr1_mean + gr2_mean > meanSum) %>%
+	      arrange(-consensus_score)
+	  } else {
+	    output <- output %>% arrange(-consensus_score)
+	  }
+	  
 	}
 	
 	##############################
@@ -180,7 +185,7 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 
 
 # This function defines and returns genes and associated statistics for genes showing a trajectory pattern in a single ordered set of cell types.
-find_trajectory_genes <- function(data, g1_ids, in_genes = NULL) {
+find_trajectory_genes <- function(data, g1_ids, in_genes = NULL, filter=TRUE) {
   
   # Deal with edge case where only one cell type is selected
   if(length(g1_ids)<=1){
@@ -281,9 +286,13 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL) {
   
   # Define the output table
   if(is.null(in_genes)){
-    output <- output %>%
-      filter(WLS_P_Value <= pvalCutoff) %>%
-      arrange(-WLS_T_Value)
+    if(filter){
+      output <- output %>%
+        filter(WLS_P_Value <= pvalCutoff) %>%
+        arrange(-WLS_T_Value)
+    } else {
+      output <- output %>% arrange(-WLS_T_Value)
+    }
   }
   
   # Round to N significant digits

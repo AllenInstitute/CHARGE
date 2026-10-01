@@ -344,6 +344,16 @@ ui <- function(request) {
                    h4("Foreground cell types:"),
                    verbatimTextOutput("currentFilterIDs"),
                    p("After adjusting your filters, press the green or purple button and then scroll down."),
+                   radioButtons(
+                     inputId = "gene_return_mode",
+                     label = "Choose gene output:",
+                     choices = c(
+                       "Return top marker genes (fast)" = "fast",
+                       "Return all genes (slow)" = "all"
+                     ),
+                     selected = "fast",
+                     inline = TRUE
+                   ),
                    fluidRow(
                      column(4,
                             actionButton("clearFilter", "Clear Foreground Filter")
@@ -371,8 +381,59 @@ ui <- function(request) {
                    uiOutput("conditional_background_clear")
             ),
             
-            column(7,
-                   plotlyOutput("sunburst", height = "740")
+            column(
+              7,
+              
+              conditionalPanel(
+                condition = "input.plot_selection != 'Manual entry'",
+                plotlyOutput("sunburst", height = "740")
+              ),
+              
+              conditionalPanel(
+                condition = "input.plot_selection == 'Manual entry'",
+                
+                h4("Manual cell type entry"),
+                
+                selectizeInput(
+                  inputId = "manual_foreground_types",
+                  label = "Select foreground cell types",
+                  choices = NULL,
+                  multiple = TRUE,
+                  options = list(
+                    placeholder = "Begin typing a cell type...",
+                    create = FALSE
+                  )
+                ),
+                
+                actionButton(
+                  inputId = "replace_foreground_types",
+                  label = "Replace foreground cell types with this list",
+                  class = "btn-primary"
+                ),
+                
+                conditionalPanel(
+                  condition = "input.background_type == 'Foreground vs. custom types'",
+                  
+                  tags$hr(),
+                  
+                  selectizeInput(
+                    inputId = "manual_comparison_types",
+                    label = "Select comparison cell types",
+                    choices = NULL,
+                    multiple = TRUE,
+                    options = list(
+                      placeholder = "Begin typing a cell type...",
+                      create = FALSE
+                    )
+                  ),
+                  
+                  actionButton(
+                    inputId = "replace_comparison_types",
+                    label = "Replace comparison cell types with this list",
+                    class = "btn-primary"
+                  )
+                )
+              )
             )
           )
         )

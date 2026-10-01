@@ -318,55 +318,73 @@ server <- function(input, output, session) {
   #
    rv_anno <- reactive({
      req(rv_path())
-     file = rv_path()
+     
+     file <- rv_path()
      write("Reading file.", stderr())
      
-     # THIS IS WHERE THE DATA GETS READ IN.  THERE SHOULD PROBABLY BE MORE CHECKS OF PROPER FORMAT.
-     if(substr(file,1,2)=="s3"){
-       ## READ FROM s3 bucket
-       file2    = substr(file,6,10000)
-       file2    = strsplit(file2,"/")[[1]]
-       bucket   = file2[1]
-       filename = paste(file2[2:length(file2)],collapse="/")
-
-       write("filename:", stderr())
-       write(filename, stderr())
-       write("bucket:", stderr())
-       write(bucket, stderr())
-       
-       objIn = objects()
-       a = try({s3load(object = filename,bucket = bucket)})
-       if(class(a)=="try-error"){
-         write(paste("s3",file,"does not exist or cannot be accessed."))
-         return(NULL)
+     withProgress(
+       message = "Loading selected data set...",
+       detail = "Please wait.",
+       value = NULL,
+       {
+         
+         # THIS IS WHERE THE DATA GETS READ IN.
+         if (substr(file, 1, 2) == "s3") {
+           
+           ## READ FROM s3 bucket
+           file2 <- substr(file, 6, 10000)
+           file2 <- strsplit(file2, "/")[[1]]
+           bucket <- file2[1]
+           filename <- paste(file2[2:length(file2)], collapse = "/")
+           
+           write("filename:", stderr())
+           write(filename, stderr())
+           write("bucket:", stderr())
+           write(bucket, stderr())
+           
+           objIn <- objects()
+           a <- try({
+             s3load(object = filename, bucket = bucket)
+           })
+           
+           if (inherits(a, "try-error")) {
+             write(
+               paste("s3", file, "does not exist or cannot be accessed."),
+               stderr()
+             )
+             return(NULL)
+           }
+           
+           objOut <- objects()
+           objs <- setdiff(objOut, objIn)
+           
+         } else {
+           
+           ## READ LOCALLY
+           if (file.exists(file)) {
+             objs <- load(file)
+           } else {
+             write(
+               paste("Local", file, "does not exist."),
+               stderr()
+             )
+             return(NULL)
+           }
+         }
+         
+         eval(parse(
+           text = paste0(
+             "data=list(",
+             paste(objs, collapse = ","),
+             ")"
+           )
+         ))
+         
+         names(data) <- objs
+         data
        }
-       objOut = objects()
-       objs = setdiff(objOut,objIn)
-       
-     } else {
-       ## READ LOCALLY... THIS MIGHT NOT WORK
-       if(file.exists(file)){
-         objs <- load(file)
-       } else {
-         write(paste("Local",file,"does not exist."))
-         return(NULL)
-       }
-     }
-     eval(parse(text=paste0("data=list(",paste(objs,collapse=","),")")))  
-     names(data) <- objs
-     return(data)
-  }) # end rv_anno()
-   
-  
-  # Check for valid input
-  output$checkInput <- renderUI({
-    req(rv_anno)
-    if(is.null(rv_anno())){
-      p("ENTER VALID DATA SET FILE.")
-    } else {
-      p(" ")
-    }
-  })
+     )
+   })
   
   
   # Build the annotation descriptions table
@@ -420,6 +438,49 @@ server <- function(input, output, session) {
     
   })
   
+  observeEvent(
+    list(rv_anno(), input$hierarchy_level),
+    {
+      req(rv_anno())
+      req(input$hierarchy_level)
+      
+      data <- rv_anno()
+      label_column <- paste0(input$hierarchy_level, "_label")
+      
+      req(label_column %in% colnames(data$cluster_info))
+      
+      cell_type_choices <- unique(
+        as.character(data$cluster_info[[label_column]])
+      )
+      
+      cell_type_choices <- cell_type_choices[
+        !is.na(cell_type_choices) &
+          nzchar(cell_type_choices)
+      ]
+      
+      current_foreground <- isolate(input$manual_foreground_types)
+      current_comparison <- isolate(input$manual_comparison_types)
+      
+      updateSelectizeInput(
+        session,
+        inputId = "manual_foreground_types",
+        choices = cell_type_choices,
+        selected = intersect(current_foreground, cell_type_choices),
+        server = TRUE
+      )
+      
+      updateSelectizeInput(
+        session,
+        inputId = "manual_comparison_types",
+        choices = cell_type_choices,
+        selected = intersect(current_comparison, cell_type_choices),
+        server = TRUE
+      )
+    },
+    ignoreInit = FALSE
+  )
+  
+  
   
   ######################################################################
   ##      Constellation plots, Sunburst plots, and plot selection     ##
@@ -434,7 +495,8 @@ server <- function(input, output, session) {
       label = "Choose plot selection type:",
       choices = list(
         "Sunburst" = "Sunburst",
-        "Constellation" = "Constellation"
+        "Constellation" = "Constellation",
+        "Manual entry" = "Manual entry"
       ),
       selected = "Sunburst", 
       inline = TRUE # Display buttons side-by-side
@@ -480,6 +542,28 @@ server <- function(input, output, session) {
         layout(grid = list(columns =1, rows = 1),
                margin = list(l = 0, r = 0, b = 0, t = 0)
         )
+      
+      p <- htmlwidgets::onRender(
+        p,
+        "
+  function(el, x) {
+    el.on('plotly_sunburstclick', function(d) {
+      if (d.points && d.points.length > 0) {
+        Shiny.setInputValue(
+          'sunburst_node_click',
+          {
+            label: d.points[0].label,
+            nonce: Date.now()
+          },
+          {priority: 'event'}
+        );
+      }
+
+      return false;
+    });
+  }
+  "
+      )
       
       # Output 
       write(sunburstDF$label,"label.txt")
@@ -528,59 +612,177 @@ server <- function(input, output, session) {
   
 
   # This function sets the selected nodes
-  observeEvent(event_data("plotly_click"), {
+  observeEvent(
+    list(
+      input$sunburst_node_click,
+      event_data("plotly_click")
+    ),
+    {
     
     req(rv_anno())
     data <- rv_anno()
     constellation <- data$constellation
     
     # Register the event
-    d <- event_data("plotly_click")
+    d <- NULL
     
-    if(input$plot_selection=="Sunburst"){ 
-      # Workaround because keys are not working properly in plotly
-      label <- scan("label.txt",what="character",sep="\n")
-      clicked_node_id <- label[d$pointNumber+1]
-    } else {
-      dat  = constellation[[input$hierarchy_level]]$x$layoutAttrs[[1]]$annotations
-      xval = as.numeric(lapply(dat,function(x) x$x))
-      yval = as.numeric(lapply(dat,function(x) x$y))
-      kp   = which((xval==d$x)&(yval==d$y))
-      clicked_node_id = as.character(lapply(dat,function(x) x$text))[kp[1]]
+    if (input$plot_selection != "Sunburst") {
+      d <- event_data("plotly_click")
+      req(d)
     }
-    write(clicked_node_id,stderr())
     
-    # Determine foreground or background
-    which_list     <- "foreground"    # UPDATE THIS
-    if(input$background_type=="Foreground vs. custom types")
-      if(input$list_selection=="Comparison")
-        which_list <- "background"
-        
-    selected_nodes <- rv_sunburst$selected_nodes[[which_list]]
-    
-    # Get the current set of selected nodes
-    current_selected <- selected_nodes
+    if (input$plot_selection == "Sunburst") {
       
-    # Toggle the clicked node's ID in the filter
-    if (clicked_node_id %in% current_selected) {
-      # If already selected, remove it
-      selected_nodes <- setdiff(current_selected, clicked_node_id)
+      req(input$sunburst_node_click$label)
+      clicked_node_id <- input$sunburst_node_click$label
+      
     } else {
-      # If not selected, add it
-      selected_nodes <- unique(c(current_selected, clicked_node_id))
+      
+      dat <- constellation[[input$hierarchy_level]]$x$layoutAttrs[[1]]$annotations
+      xval <- as.numeric(lapply(dat, function(x) x$x))
+      yval <- as.numeric(lapply(dat, function(x) x$y))
+      kp <- which((xval == d$x) & (yval == d$y))
+      
+      clicked_node_id <- as.character(
+        lapply(dat, function(x) x$text)
+      )[kp[1]]
     }
     
-    # Subset selected nodes to only include selections in the current hierarchy
+    write(clicked_node_id, stderr())
     
-    level = input$hierarchy_level
-    if(length(level)==0) level = data$hierarchy[1]
-    all_types = unique(data$cluster_info[,paste0(level,"_label")])
-    selected_nodes <- selected_nodes[selected_nodes %in% all_types]
+    # Determine whether the click modifies foreground or comparison types
+    which_list <- "foreground"
     
-    # Determine foreground or background
+    if (
+      input$background_type == "Foreground vs. custom types" &&
+      input$list_selection == "Comparison"
+    ) {
+      which_list <- "background"
+    }
+    
+    current_selected <- rv_sunburst$selected_nodes[[which_list]]
+    
+    if (input$plot_selection == "Sunburst") {
+      
+      target_level <- input$hierarchy_level
+      target_column <- paste0(target_level, "_label")
+      cluster_info <- data$cluster_info
+      
+      req(target_column %in% colnames(cluster_info))
+      
+      hierarchy_columns <- paste0(data$hierarchy, "_label")
+      hierarchy_columns <- intersect(
+        hierarchy_columns,
+        colnames(cluster_info)
+      )
+      
+      if (identical(clicked_node_id, "all")) {
+        
+        clicked_descendants <- unique(
+          as.character(cluster_info[[target_column]])
+        )
+        
+      } else {
+        
+        clicked_columns <- hierarchy_columns[
+          vapply(
+            hierarchy_columns,
+            function(column_name) {
+              clicked_node_id %in%
+                as.character(cluster_info[[column_name]])
+            },
+            logical(1)
+          )
+        ]
+        
+        if (length(clicked_columns) == 0) {
+          
+          clicked_descendants <- character(0)
+          
+        } else {
+          
+          descendant_rows <- Reduce(
+            `|`,
+            lapply(
+              clicked_columns,
+              function(column_name) {
+                as.character(cluster_info[[column_name]]) ==
+                  clicked_node_id
+              }
+            )
+          )
+          
+          clicked_descendants <- unique(
+            as.character(
+              cluster_info[descendant_rows, target_column]
+            )
+          )
+        }
+      }
+      
+      clicked_descendants <- clicked_descendants[
+        !is.na(clicked_descendants) &
+          nzchar(clicked_descendants)
+      ]
+      
+      if (
+        length(clicked_descendants) > 0 &&
+        all(clicked_descendants %in% current_selected)
+      ) {
+        
+        # Clicking an already selected branch removes all its descendants
+        selected_nodes <- current_selected[
+          !(current_selected %in% clicked_descendants)
+        ]
+        
+      } else {
+        
+        # Add missing descendants in their cluster_info order
+        selected_nodes <- c(
+          current_selected,
+          clicked_descendants[
+            !(clicked_descendants %in% current_selected)
+          ]
+        )
+      }
+      
+    } else {
+      
+      # Preserve the existing Constellation behavior
+      if (clicked_node_id %in% current_selected) {
+        selected_nodes <- setdiff(
+          current_selected,
+          clicked_node_id
+        )
+      } else {
+        selected_nodes <- unique(
+          c(current_selected, clicked_node_id)
+        )
+      }
+    }
+    
+    # Retain only valid types from the currently selected hierarchy level
+    level <- input$hierarchy_level
+    
+    if (length(level) == 0) {
+      level <- data$hierarchy[1]
+    }
+    
+    all_types <- unique(
+      as.character(
+        data$cluster_info[[paste0(level, "_label")]]
+      )
+    )
+    
+    selected_nodes <- selected_nodes[
+      selected_nodes %in% all_types
+    ]
+    
     rv_sunburst$selected_nodes[[which_list]] <- selected_nodes
     
-  })
+    },
+    ignoreInit = TRUE
+  )
   
   ## FOREGROUND FILTERS
   
@@ -594,6 +796,11 @@ server <- function(input, output, session) {
   
   observeEvent(input$clearFilter, {
     rv_sunburst$selected_nodes$foreground <- character(0) # Reset the filter
+  })
+  
+  observeEvent(input$replace_foreground_types, {
+    rv_sunburst$selected_nodes$foreground <-
+      as.character(input$manual_foreground_types)
   })
   
   ## BACKGROUND FILTERS
@@ -644,6 +851,12 @@ server <- function(input, output, session) {
     rv_sunburst$selected_nodes$background <- character(0) # Reset the filter
   })
   
+  observeEvent(input$replace_comparison_types, {
+    req(input$background_type == "Foreground vs. custom types")
+    
+    rv_sunburst$selected_nodes$background <-
+      as.character(input$manual_comparison_types)
+  })
   
   output$conditional_list_selection <- renderUI({
     
@@ -721,11 +934,21 @@ server <- function(input, output, session) {
           
           if(input$background_type=="Trajectory analysis"){
             
-            find_trajectory_genes(data, rv_sunburst$selected_nodes$foreground)
+            find_trajectory_genes(
+              data,
+              rv_sunburst$selected_nodes$foreground,
+              filter = identical(input$gene_return_mode, "fast")
+            )
             
           } else {
             
-            find_de_genes(data, input, rv_sunburst$selected_nodes$foreground, rv_sunburst$selected_nodes$background)
+            find_de_genes(
+              data,
+              input,
+              rv_sunburst$selected_nodes$foreground,
+              rv_sunburst$selected_nodes$background,
+              filter = identical(input$gene_return_mode, "fast")
+            )
             
           }
         }
@@ -742,17 +965,69 @@ server <- function(input, output, session) {
           
           if(input$background_type=="Trajectory analysis"){
             
-            find_trajectory_genes(data, rv_sunburst$selected_nodes$foreground, in_genes = input_gene_set)
+            find_trajectory_genes(
+              data,
+              rv_sunburst$selected_nodes$foreground,
+              in_genes = input_gene_set,
+              filter = TRUE
+            )
             
           } else {
             
-            find_de_genes(data, input, rv_sunburst$selected_nodes$foreground, rv_sunburst$selected_nodes$background, in_genes = input_gene_set)
+            find_de_genes(
+              data,
+              input,
+              rv_sunburst$selected_nodes$foreground,
+              rv_sunburst$selected_nodes$background,
+              in_genes = input_gene_set,
+              filter = TRUE
+            )
             
           }
         }
     }
   })
-  
+
+  gene_link_lookup <- reactive({
+    req(input$select_textbox)
+    
+    link_name <- table_info[
+      table_info$table_name == input$select_textbox,
+      "web_urls"
+    ]
+    
+    if (length(link_name) != 1 ||
+        is.na(link_name) ||
+        !nzchar(link_name)) {
+      return(character(0))
+    }
+    
+    link_file <- file.path("links", paste0(link_name, ".csv.gz"))
+    
+    if (!file.exists(link_file)) {
+      warning("Gene link file not found: ", link_file)
+      return(character(0))
+    }
+    
+    link_table <- read.csv(
+      gzfile(link_file),
+      stringsAsFactors = FALSE
+    )
+    
+    if (!all(c("gene", "url") %in% colnames(link_table))) {
+      warning("Gene link file must contain 'gene' and 'url' columns: ", link_file)
+      return(character(0))
+    }
+    
+    link_table <- link_table[
+      !is.na(link_table$gene) &
+        !is.na(link_table$url) &
+        !duplicated(link_table$gene),
+      c("gene", "url")
+    ]
+    
+    setNames(link_table$url, link_table$gene)
+  })  
 
   output$de_table <- renderDataTable({
     req(calculate_de_genes())
@@ -795,25 +1070,53 @@ server <- function(input, output, session) {
     
     print(cbind(colnames(data_df),column_definitions))
     
-    datatable(data_df, rownames = FALSE, filter = "top", 
-              options = list(scrollX = TRUE, 
-                             scrollY = TRUE, 
-                             pageLength = 10, 
-                             lengthMenu = list(c(5, 10, 20), c('5', '10', '20')),
-                             headerCallback = JS(
-                               paste0(
-                                 "function(thead, data, start, end, display) {",
-                                 "  var tooltips = ", toJSON(column_definitions), ";",
-                                 "  $(thead).find('th').each(function(i) {",
-                                 "    this.setAttribute('title', tooltips[i]);",
-                                 "  });",
-                                 "}"
-                               )
-                             )
+    gene_links <- gene_link_lookup()
+    gene_names <- as.character(data_df$gene)
+    gene_urls <- unname(gene_links[gene_names])
+    
+    data_df$gene <- mapply(
+      FUN = function(gene, url) {
+        if (is.na(url) || !nzchar(url)) {
+          return(as.character(htmltools::htmlEscape(gene)))
+        }
+        
+        as.character(
+          htmltools::tags$a(
+            href = url,
+            target = "_blank",
+            rel = "noopener noreferrer",
+            gene
+          )
+        )
+      },
+      gene = gene_names,
+      url = gene_urls,
+      USE.NAMES = FALSE
+    )
+    
+    datatable(data_df, 
+              rownames = FALSE, 
+              filter = "top", 
+              escape = which(colnames(data_df) != "gene"),
+              options = list(
+                scrollX = TRUE,
+                scrollY = TRUE,
+                pageLength = 10,
+                lengthMenu = list(c(5, 10, 20), c("5", "10", "20")),
+                headerCallback = JS(
+                  paste0(
+                    "function(thead, data, start, end, display) {",
+                    "  var tooltips = ", toJSON(column_definitions), ";",
+                    "  $(thead).find('th').each(function(i) {",
+                    "    this.setAttribute('title', tooltips[i]);",
+                    "  });",
+                    "}"
+                  )
+                )
               )
     )
     
-  })
+  }, server=TRUE)
   
   output$download_table <- downloadHandler(
     

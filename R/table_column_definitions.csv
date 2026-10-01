@@ -1,5 +1,6 @@
 column_names,column_definitions
 gene,Gene symbol
+consensus_score,"Product of propMeanScore, prop_diff, and log2_FC. A reasonable starting point for sorting."
 prop_diff,Difference in the proportions of cells expressed with CPM>1 in the foreground vs. the comparison cell types.
 log2_FC,Difference in average log2-normalized gene expression (CPM) between cells in the foreground vs. the comparison cell types.
 propMeanScore,"A metric defining differential expression using mean expression and proportion (from Sten Linnarsson's group).  Specifically, E[i,j] = ((f[i,j] + epsilon_1)/(f[i,j_hat] + epsilon_1))*((mu[i,j] + epsilon_2)/(mu[i,j_hat] + epsilon_2)), where f(i,j) is the fraction of non-zero expression values in the cluster and f(i,j_hat) is the fraction of non-zero expression values for cells not in the cluster. Similarly, mu(i,j) is the mean expression in the cluster and mu(i,j_hat) is the mean expression for cells not in the cluster. Small constants are added to prevent the enrichment score from going to infinity (we use epsilon_1 = 0.1 and epsilon_2 = 0.01)."

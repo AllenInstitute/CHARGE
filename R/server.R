@@ -758,6 +758,30 @@ server <- function(input, output, session) {
     req(calculate_de_genes())
     data_df = calculate_de_genes()
     
+    
+    # desired column order
+    new_order <- c(
+      "gene", 
+      "consensus_score",
+      "propMeanScore", 
+      "prop_diff", 
+      "log2_FC", 
+      "gr1_prop", 
+      "gr1_mean", 
+      "gr2_prop", 
+      "gr2_mean", 
+      "rank_biserial_corr",
+      "overlap_coefficient", 
+      "ABC_atlas___",
+      "gene_categories________________________________________________________"
+    )
+    
+    # keep only columns that actually exist
+    new_order <- intersect(new_order, colnames(data_df))
+    
+    # reorder dataframe
+    data_df <- data_df[, new_order, drop = FALSE]
+    
     ## Dynamically determine tool tip definitions
     column_definitions <- sapply(colnames(data_df), function(col_name) {
       # Find the matching tooltip from the loaded data
@@ -769,7 +793,9 @@ server <- function(input, output, session) {
       return(match)
     }, USE.NAMES = FALSE)
     
-    datatable(data_df, filter = "top", 
+    print(cbind(colnames(data_df),column_definitions))
+    
+    datatable(data_df, rownames = FALSE, filter = "top", 
               options = list(scrollX = TRUE, 
                              scrollY = TRUE, 
                              pageLength = 10, 

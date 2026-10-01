@@ -11,7 +11,7 @@ table_names <- c(
   "Human Multiple neocortical areas (2019): SMART-seq",
   "Mouse Whole cortex and hippocampus (2021): 10X seq",
   "Mouse Whole cortex and hippocampus (2021): SMART-seq",
-  "Mouse V1 & ALM (2018): , SMART-seq",
+  "Mouse V1 & ALM (2018): SMART-seq",
   "Comparative LGN (2018): Human, SMART-seq",
   "Comparative LGN (2018): Mouse, SMART-seq",
   "Comparative LGN (2018): Macaque, SMART-seq"

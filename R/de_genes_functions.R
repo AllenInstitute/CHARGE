@@ -128,6 +128,7 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 	                     gr2_prop = round(g2_props,3), 
 	                     gr2_mean = round(g2_means,3),
 	                     stringsAsFactors = F)
+	output$consensus_score = round(output$prop_diff * output$log2_FC * output$propMeanScore,5)
 	
 	# Hard-coded filters (could be added as input later)
 	meanSum       = 1
@@ -138,7 +139,7 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL) {
 	  output <- output %>%
 	    filter(abs(prop_diff) > absPropDiff) %>%
 	    filter(gr1_mean + gr2_mean > meanSum) %>%
-	    arrange(-prop_diff)
+	    arrange(-consensus_score)
 	}
 	
 	##############################

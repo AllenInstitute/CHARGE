@@ -14,7 +14,7 @@ table_names <- c(
   "Mouse V1 & ALM (2018): SMART-seq",
   "Comparative LGN (2018): Human, SMART-seq",
   "Comparative LGN (2018): Mouse, SMART-seq",
-  "Comparative LGN (2018): Macaque, SMART-seq"
+  "Comparative LGN (2018): Macaque, SMART-seq",
   "Consensus Spinal Cord (2026): Human, SMART-seq",
   "Consensus Spinal Cord (2026): Mouse, SMART-seq",
   "Consensus Spinal Cord (2026): Macaque, SMART-seq"

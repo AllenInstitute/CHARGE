@@ -121,7 +121,7 @@ web_urls <- c(
     "LGN_mouse",
     "LGN_macaque",
     "SpC_human",
-    "SpC_mouse",
+    "SpC_human",  # Because mouse genes show human orthologs
     "SpC_macaque"
 )
 

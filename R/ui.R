@@ -348,8 +348,8 @@ ui <- function(request) {
                      inputId = "gene_return_mode",
                      label = "Choose gene output:",
                      choices = c(
-                       "Return top marker genes (fast)" = "fast",
-                       "Return all genes (slow)" = "all"
+                       "Return top marker genes (faster)" = "fast",
+                       "Return all genes (slower)" = "all"
                      ),
                      selected = "fast",
                      inline = TRUE

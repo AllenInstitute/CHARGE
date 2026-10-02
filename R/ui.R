@@ -341,6 +341,7 @@ ui <- function(request) {
                                  "Trajectory analysis"),
                      selected = "Foreground vs. local types"
                    ),
+                   uiOutput("local_context_level_ui"),
                    h4("Foreground cell types:"),
                    verbatimTextOutput("currentFilterIDs"),
                    p("After adjusting your filters, press the green or purple button and then scroll down."),

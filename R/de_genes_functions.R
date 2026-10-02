@@ -6,6 +6,7 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
   count_n      <- data$count_n
   sums         <- data$sums
   hierarchy    <- data$hierarchy
+  local_context_level <- input$local_context_level
   cluster_info <- data$cluster_info
   level        <- input$hierarchy_level
   means        <- data$means
@@ -19,7 +20,7 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
 	  if(level==hierarchy[length(hierarchy)]){ 
 	    g2_ids <- unique(cluster_info[,paste0(level,"_label")])
 	  } else{
-	    level2 <- hierarchy[which(hierarchy==level)+1]
+	    level2 <- local_context_level # hierarchy[which(hierarchy==level)+1]
 	    keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
 	    keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
 	    g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])

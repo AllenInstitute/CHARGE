@@ -105,6 +105,7 @@ server <- function(input, output, session) {
      
      # "Select cell types for analysis and analysis type" box
      "hierarchy_level",
+     "local_context_level",
      "plot_selection" ,
      "background_type"
      
@@ -323,7 +324,7 @@ server <- function(input, output, session) {
      write("Reading file.", stderr())
      
      withProgress(
-       message = "Loading selected data set...",
+       message = "Loading data set...",
        detail = "Please wait.",
        value = NULL,
        {
@@ -436,6 +437,52 @@ server <- function(input, output, session) {
                       selected = hierarchy_options[1]
     )
     
+  })
+  
+  output$local_context_level_ui <- renderUI({
+    req(rv_hierarchy_options())
+    req(input$hierarchy_level)
+    
+    if (input$background_type != "Foreground vs. local types") {
+      return(NULL)
+    }
+    
+    hierarchy_options <- rv_hierarchy_options()
+    current_level_index <- match(
+      input$hierarchy_level,
+      hierarchy_options
+    )
+    
+    if (
+      is.na(current_level_index) ||
+      current_level_index >= length(hierarchy_options)
+    ) {
+      return(
+        helpText(
+          "No higher hierarchy level is available for local context."
+        )
+      )
+    }
+    
+    higher_levels <- hierarchy_options[
+      (current_level_index + 1):length(hierarchy_options)
+    ]
+    
+    current_selection <- isolate(input$local_context_level)
+    
+    if (
+      is.null(current_selection) ||
+      !(current_selection %in% higher_levels)
+    ) {
+      current_selection <- higher_levels[1]
+    }
+    
+    selectInput(
+      inputId = "local_context_level",
+      label = "Choose level of local context:",
+      choices = higher_levels,
+      selected = current_selection
+    )
   })
   
   observeEvent(
@@ -1047,7 +1094,6 @@ server <- function(input, output, session) {
       "gr2_mean", 
       "rank_biserial_corr",
       "overlap_coefficient", 
-      "ABC_atlas___",
       "gene_categories________________________________________________________"
     )
     

@@ -1080,28 +1080,44 @@ server <- function(input, output, session) {
     req(calculate_de_genes())
     data_df = calculate_de_genes()
     
-    
-    # desired column order
-    new_order <- c(
-      "gene", 
-      "consensus_score",
-      "propMeanScore", 
-      "prop_diff", 
-      "log2_FC", 
-      "gr1_prop", 
-      "gr1_mean", 
-      "gr2_prop", 
-      "gr2_mean", 
-      "rank_biserial_corr",
-      "overlap_coefficient", 
-      "gene_categories________________________________________________________"
-    )
+    if (input$background_type == "Trajectory analysis") {
+      
+      # Preferred trajectory-table column order
+      preferred_order <- c(
+        "gene",
+        "mean.expression",
+        "WLS_Slope",
+        "WLS_T_Value",
+        "WLS_P_Value",
+        "WLS_FDR", 
+        "gene_categories________________________________________________________"
+      )
+      
+    } else {
+      
+      # Preferred differential-gene-table column order
+      preferred_order <- c(
+        "gene", 
+        "consensus_score",
+        "propMeanScore", 
+        "prop_diff", 
+        "log2_FC", 
+        "gr1_prop", 
+        "gr1_mean", 
+        "gr2_prop", 
+        "gr2_mean", 
+        "rank_biserial_corr",
+        "overlap_coefficient", 
+        "gene_categories________________________________________________________"
+      )
+      
+    }
     
     # keep only columns that actually exist
-    new_order <- intersect(new_order, colnames(data_df))
+    preferred_order <- intersect(preferred_order, colnames(data_df))
     
     # reorder dataframe
-    data_df <- data_df[, new_order, drop = FALSE]
+    data_df <- data_df[, preferred_order, drop = FALSE]
     
     ## Dynamically determine tool tip definitions
     column_definitions <- sapply(colnames(data_df), function(col_name) {
@@ -1255,7 +1271,13 @@ server <- function(input, output, session) {
     current_de_table <- de_table[input$de_table_rows_current,]
     # print(current_de_table)
     
-    top10_genes <- head(current_de_table$gene,100)
+    top10_genes <- as.character(
+      head(current_de_table[["gene"]], 100)
+    )
+    
+    top10_genes <- top10_genes[
+      !is.na(top10_genes) & nzchar(top10_genes)
+    ]
     
     top10_genes
     
@@ -1339,9 +1361,6 @@ server <- function(input, output, session) {
     req(rv_anno())
     cat("gene set enrichment \n")
     
-    # Show processing message
-    output$processing_message <- renderText("Running enrichment analysis...")
-    
     # Read in current gene list
     de_table <- calculate_de_genes()
     current_de_table <- de_table[input$de_table_rows_all,]
@@ -1389,9 +1408,6 @@ server <- function(input, output, session) {
         qvalueCutoff = 0.05
       )
       
-      # Hide processing message
-      output$processing_message <- renderText("")
-      
       return(go_enrich_results)
       
     }, error = function(e) {
@@ -1400,7 +1416,6 @@ server <- function(input, output, session) {
         paste("An error occurred during analysis:", e$message),
         footer = modalButton("OK")
       ))
-      output$processing_message <- renderText("")
       return(NULL)
     })
   })

@@ -46,11 +46,11 @@ generate_dot_plot <- function(input, data, g1_ids, g2_ids, genes){
   clusters     <- colnames(data_means)
   
   ## Convert matrices to long format
-  df_color_long <- as.data.frame(data_means[genes,]) %>%
+  df_color_long <- as.data.frame(data_means[genes, , drop = FALSE]) %>%
     tibble::rownames_to_column(var = "Gene") %>%
     pivot_longer(cols = -Gene, names_to = "Cluster", values_to = "ColorValue")
   
-  df_size_long <- as.data.frame(data_props[genes,]) %>%
+  df_size_long <- as.data.frame(data_props[genes, , drop = FALSE]) %>%
     tibble::rownames_to_column(var = "Gene") %>%
     pivot_longer(cols = -Gene, names_to = "Cluster", values_to = "SizeValue")
   
@@ -211,8 +211,8 @@ generate_trajectory_plot <- function(data, g1_ids, genes){
   }
   
   ## Define variables
-  means       <- data$means[genes, g1_ids]
-  sds         <- data$sds[genes, g1_ids]
+  means       <- data$means[genes, g1_ids, drop = FALSE]
+  sds         <- data$sds[genes, g1_ids, drop = FALSE]
   count_n     <- data$count_n[g1_ids]
   num_runs    <- length(genes)
   num_cls     <- length(g1_ids)

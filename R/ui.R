@@ -477,19 +477,14 @@ ui <- function(request) {
           style = "display: flex; gap: 10px;",
           div(uiOutput("download_table_button")),
           div(uiOutput("gene_set_enrichment_button")),
-          div(
-            conditionalPanel(
-              condition = "input.gene_set_enrichment > 0",
-              p("Enrichment is a go! This process can take up to a minute.")
-            )
-          ),
-          div(textOutput("processing_message"))
         )
       ),
       
       conditionalPanel(
         condition = "input.gene_set_enrichment > 0",
-        plotOutput("enrichment_plot", height = "400px"),
+        withSpinner(
+          plotOutput("enrichment_plot", height = "400px")
+        ),
         
         fluidRow(
           column(8,

@@ -159,9 +159,74 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
 
 	# Calculate the ranked biserial correlation (as a metric for specificity)
 	# To get a score that reflects both the purity of the groups and the direction of the sorting (e.g., A's before B's), we use the Rank Biserial Correlation Coefficient (r_b), which is a non-parametric measure of effect size for a two-group ranking. It quantifies how well a binary classification (like being in group A or B) predicts the rank order of the items.
-	datIn <- cbind(means[genesUse, c(g1_ids,g2_ids)],props[genesUse, c(g1_ids,g2_ids)])
-	rank_biserial_corr <- apply(datIn,1,score_from_ranks_wrapper,
-	                            c(rep("A",length(g1_ids)),rep("B",length(g2_ids))))
+	mean_data <- means[
+	  genesUse,
+	  c(g1_ids, g2_ids),
+	  drop = FALSE
+	]
+	
+	prop_data <- props[
+	  genesUse,
+	  c(g1_ids, g2_ids),
+	  drop = FALSE
+	]
+	
+	calculate_row_rbc <- function(data_matrix) {
+	  
+	  vapply(
+	    seq_len(nrow(data_matrix)),
+	    FUN = function(i) {
+	      
+	      group_a <- as.numeric(
+	        data_matrix[i, seq_along(g1_ids), drop = TRUE]
+	      )
+	      
+	      group_b <- as.numeric(
+	        data_matrix[
+	          i,
+	          length(g1_ids) + seq_along(g2_ids),
+	          drop = TRUE
+	        ]
+	      )
+	      
+	      group_a <- group_a[is.finite(group_a)]
+	      group_b <- group_b[is.finite(group_b)]
+	      
+	      if (length(group_a) == 0 || length(group_b) == 0) {
+	        return(NA_real_)
+	      }
+	      
+	      mean(
+	        sign(
+	          outer(group_a, group_b, FUN = "-")
+	        )
+	      )
+	    },
+	    FUN.VALUE = numeric(1)
+	  )
+	}
+	
+	mean_rank_biserial_corr <- calculate_row_rbc(mean_data)
+	prop_rank_biserial_corr <- calculate_row_rbc(prop_data)
+	
+	rank_biserial_corr <- rowMeans(
+	  cbind(
+	    mean_rank_biserial_corr,
+	    prop_rank_biserial_corr
+	  ),
+	  na.rm = TRUE
+	)
+	
+	rank_biserial_corr[
+	  !is.finite(rank_biserial_corr)
+	] <- NA_real_
+	
+	rank_biserial_corr <- signif(
+	  rank_biserial_corr,
+	  5
+	)
+	
+	datIn <- cbind(mean_data, prop_data)
 	
 	# Calculate the overlap coefficient. A formal statistical metric for quantifying the overlap between two distributions is the overlapping coefficient (OVL). This measures the area of intersection between the probability density functions of two distributions. A low OVL value indicates a high degree of separation between the groups, while a high value means they are largely indistinguishable. The value of OVL ranges from 0 (no overlap) to 1 (complete overlap). This is a general measure of separation
 	# In this case we'll take the average value when running this test on means and proportions
@@ -169,12 +234,15 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
 	  overlap_coefficient <- apply(datIn,1,overlap_coefficient_wrapper,
 	                               c(rep("A",length(g1_ids)),rep("B",length(g2_ids))))
 	} else {
-	  overlap_coefficient <- 0
+	  overlap_coefficient <- rep(
+	    NA_real_,
+	    length(genesUse)
+	  )
 	}
 	
 	## Add the new statistics and reorder so they show up earlier
 	output = cbind(output, rank_biserial_corr, overlap_coefficient)
-	output = output[,c(1:4,7:10,5:6)]
+	#output = output[,c(1:4,7:10,5:6)]
 	
 	## Read gene categories (from function in separate file)
 	source("read_gene_lists.r", local=TRUE)
@@ -373,92 +441,134 @@ create_known_gene_table <- function(data, g1_ids, in_genes = NULL) {
 ########################################################
 # HELPER FUNCTIONS
 
-score_from_ranks_wrapper <- function(x,group){
-  len <- length(x)/2
-  mns <- c(rank(x[1:len]),rank(x[(len+1):(2*len)])+0.5)
-  ord <- order(mns)
-  group   <- c(group,group)[ord]
-  signif(score_from_ranks(which(group=="A"),which(group=="B")),5)
-}
 
-score_from_ranks <- function(A_ranks, B_ranks) {
-  # --- Core Calculations ---
-  n_A <- length(A_ranks)
-  n_B <- length(B_ranks)
-  n <- n_A + n_B
+overlap_coefficient_wrapper <- function(x, group) {
   
-  # Calculate the actual sums of ranks
-  W_A <- sum(A_ranks)
-  W_B <- sum(B_ranks)
-  actual_diff <- W_B - W_A
+  n_clusters <- length(group)
   
-  # --- Determine the Correct Normalization Factor ---
+  mean_values <- x[
+    seq_len(n_clusters)
+  ]
   
-  # For a perfect A-B sort, ranks of A are 1:n_A, B are (n_A+1):n
-  max_W_B_ab <- sum((n_A + 1):n)
-  min_W_A_ab <- sum(1:n_A)
-  max_diff_ab <- max_W_B_ab - min_W_A_ab
+  prop_values <- x[
+    n_clusters + seq_len(n_clusters)
+  ]
   
-  # For a perfect B-A sort, ranks of B are 1:n_B, A are (n_B+1):n
-  max_W_A_ba <- sum((n_B + 1):n)
-  min_W_B_ba <- sum(1:n_B)
-  max_diff_ba <- max_W_A_ba - min_W_B_ba
+  mean_overlap <- calculate_overlap_coefficient(
+    mean_values[group == "A"],
+    mean_values[group == "B"]
+  )
   
-  # Use the appropriate normalization factor based on the sign of the actual difference
-  if (actual_diff >= 0) {
-    normalization_factor <- max_diff_ab
-  } else {
-    normalization_factor <- max_diff_ba
+  prop_overlap <- calculate_overlap_coefficient(
+    prop_values[group == "A"],
+    prop_values[group == "B"]
+  )
+  
+  valid_overlaps <- c(
+    mean_overlap,
+    prop_overlap
+  )
+  
+  valid_overlaps <- valid_overlaps[
+    is.finite(valid_overlaps)
+  ]
+  
+  if (length(valid_overlaps) == 0) {
+    return(NA_real_)
   }
   
-  # --- Normalize to get the final score ---
-  score <- actual_diff / normalization_factor
-  
-  return(score)
+  signif(
+    mean(valid_overlaps),
+    5
+  )
 }
 
-
-overlap_coefficient_wrapper <- function(x,group){
-  len <- length(x)/2
-  mns <- x[1:len]
-  prp <- x[(len+1):(2*len)]
-  signif(0.5*(
-      calculate_overlap_coefficient(mns[group=="A"],mns[group=="B"])+
-      calculate_overlap_coefficient(prp[group=="A"],prp[group=="B"])
-    ),
-  5)
-}
 
 
 calculate_overlap_coefficient <- function(x1, x2, n = 512) {
   
-
-  # Combine the data to find the overall range
+  x1 <- as.numeric(x1)
+  x2 <- as.numeric(x2)
+  
+  x1 <- x1[is.finite(x1)]
+  x2 <- x2[is.finite(x2)]
+  
+  if (length(x1) < 2 || length(x2) < 2) {
+    return(NA_real_)
+  }
+  
   combined_data <- c(x1, x2)
+  
   min_val <- min(combined_data)
   max_val <- max(combined_data)
   data_range <- max_val - min_val
   
-  # Deal with all the same values
-  if(data_range==0) return(1)
+  # Both distributions are identical constants
+  if (data_range == 0) {
+    return(1)
+  }
   
-  # Define 'a' and 'b' automatically based on your formula
-  a <- min_val - 0.25 * data_range
-  b <- max_val + 0.25 * data_range
+  safe_bandwidth <- function(x, fallback_range) {
+    
+    bandwidth <- suppressWarnings(
+      stats::bw.nrd0(x)
+    )
+    
+    if (!is.finite(bandwidth) || bandwidth <= 0) {
+      bandwidth <- fallback_range / 100
+    }
+    
+    max(
+      bandwidth,
+      sqrt(.Machine$double.eps)
+    )
+  }
   
-  # Estimate the density for each group, forcing them to use the same x-points
-  density1 <- density(x1, from = a, to = b, n = n)
-  density2 <- density(x2, from = a, to = b, n = n)
+  bandwidth1 <- safe_bandwidth(x1, data_range)
+  bandwidth2 <- safe_bandwidth(x2, data_range)
   
-  # The 'density' function's output vectors are already aligned,
-  # so no interpolation is needed.
-  f1 <- density1$y
-  f2 <- density2$y
+  # Include the effective tails of both kernel densities
+  padding <- 4 * max(bandwidth1, bandwidth2)
   
-  # Calculate the intersection of the two density curves
-  intersection_area <- sum(pmin(f1, f2)) * (density1$x[2] - density1$x[1])
+  lower_bound <- min_val - padding
+  upper_bound <- max_val + padding
   
-  return(intersection_area)
+  density1 <- stats::density(
+    x1,
+    bw = bandwidth1,
+    from = lower_bound,
+    to = upper_bound,
+    n = n
+  )
+  
+  density2 <- stats::density(
+    x2,
+    bw = bandwidth2,
+    from = lower_bound,
+    to = upper_bound,
+    n = n
+  )
+  
+  overlapping_density <- pmin(
+    density1$y,
+    density2$y
+  )
+  
+  # Trapezoidal numerical integration
+  interval_width <- density1$x[2] - density1$x[1]
+  
+  overlap <- sum(
+    (
+      overlapping_density[-length(overlapping_density)] +
+        overlapping_density[-1]
+    ) / 2
+  ) * interval_width
+  
+  # Protect against minor numerical excursions
+  max(
+    0,
+    min(1, overlap)
+  )
 }
 
 

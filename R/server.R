@@ -1,6 +1,4 @@
-suppressPackageStartupMessages({
-  # NOTE: ALL LIBRARIES LOADED FROM ui.R
-})
+# Libraries are loaded in ui.R
 options(stringsAsFactors = F)
 options(shiny.maxRequestSize = 1.9 * 1024^3)  # 1.9GB max For uploading files, which I believe is just below the browser limit
 
@@ -8,11 +6,6 @@ source("initialization.R")
 source("sunburst.R")
 source("de_genes_functions.R")
 source("group_dot_plots.R")
-
-observeEvent(input$bookmark, {
-  print("BOOKMARK BUTTON CLICKED")
-})
-
 
 guess_type <- function(x) {
   if(try(sum(is.na(as.numeric(x))) > 0,silent = T)) {
@@ -75,24 +68,6 @@ server <- function(input, output, session) {
   })
   
   
-  
-  # Direct link based on input parsing
-  # This can be used to provide a direct URL to users that can be bookmarked.
-  # output$url <- renderUI({
-  #   req(input)
-  #   url <- build_url(session, input)
-  #   a("Direct Link", href = url)
-  # })
-  # 
-  # 
-  # output$show_url <- renderText("")
-  # observeEvent(input$bookmark_url, {
-  #   req(input)
-  #   url <- build_url(session, input)
-  #   output$show_url <- renderText(url)
-  # })
-  
-  # NOTE: I JUST NOW COMMENTED THIS OUT. I MIGHT NEED TO RETURN IT (June 2026)
   observe({  
    # Get all current input IDs
    all_inputs <- names(input)
@@ -152,55 +127,6 @@ server <- function(input, output, session) {
   })
   
   
-  #onBookmarked(function(url) {  #Can try this if the line below fails
-  
-  #updateSelectInput(session, inputId = "select_category", label = "Choose a category:", choices = names(table_name)) # "Enter your own location"
-  
-  # observeEvent(input$select_category, {
-  #   # Choose a value from the default table, if selected
-  #   # This is updated to be a list of lists
-  #   if(length(input$select_category)>0) category = input$select_category
-  #   updateSelectInput(session, inputId = "select_textbox", label = "Choose an existing data set:", choices = table_name[[category]])
-  #   
-  # })
-  
-  # updateSelectInput(session, 
-  #                   inputId = "select_textbox", 
-  #                   label = "Choose an existing data set (or select 'Enter your own location')", 
-  #                   choices = c("Select data set...",table_info$table_name,"Enter your own location")
-  #                   )
-  
-  #########################
-  ## General UI Elements ##
-  #########################
-  
-  # Database selection textbox and dropdown.
-  # Users provide the network path to the dataset
-  # This is in the server.R section so that the default value can be
-  #   set using the init$vals reactive values based on defaults, 
-  #   a drop-down menu, and URL parsing
-  #
-  # output$database_textbox - Textbox UI Object
-  #
-  # input$db - character object
-  # 
-  
-   # output$select_category <- renderUI({
-   #   req(init$vals)
-   #   
-   #   id <- "select_category"
-   #   #write("SELECT CATEGORY",stderr())
-   # 
-   #   initial <- NULL
-   #   if(!is.null(init$vals[[id]]))
-   #     initial <- init$vals[[id]]
-   #   #write(initial,stderr())
-   # 
-   #   selectInput("select_category", "choose a category", choices = names(table_name), selected=initial)
-   #   
-   # })
-  
-  
   observeEvent(init$vals, {
     req(table_info$table_name)
     
@@ -212,8 +138,6 @@ server <- function(input, output, session) {
     
     selected <- init$vals[["select_textbox"]]
     if (length(selected) == 0) selected <- NULL
-    
-    #showNotification(paste("Applying select_textbox =", selected %||% "NULL"))
     
     if (!is.null(selected) && !(selected %in% choices)) {
       warning("select_textbox value not found in choices: ", selected)
@@ -267,12 +191,6 @@ server <- function(input, output, session) {
     
     if (length(input$select_textbox)>0){
     
-      # If a stored db exists, pull the value from init$vals
-      #if(length(init$vals[["select_textbox"]]) > 0){
-      #  header_text = "READ ME"
-      #  text_desc <- init$vals[["select_textbox"]]
-      #} else {
-        
         if (input$select_textbox == 'Enter your own location') {
           header_text = "Upload user-provided data"
           text_desc = "User-provided data set file, created using the 'chargeTaxonomy' R function (see GitHub page for details)."
@@ -420,12 +338,8 @@ server <- function(input, output, session) {
   
   
   rv_hierarchy_options <- reactive({
-    
-    rv_anno()
-    data = rv_anno()
-    
+    data <- rv_anno()
     data$hierarchy
-    
   })
   
   observeEvent(rv_hierarchy_options(), {
@@ -566,15 +480,13 @@ server <- function(input, output, session) {
       write("Building sunburst plot", stderr())
       
       # Define the hierarchy based on input selection
-      data <- rv_anno()
       sunburst_hierarchy = data$hierarchy[length(data$hierarchy):1]    
       level = which(sunburst_hierarchy==input$hierarchy_level)
       if(length(level)==1)
         sunburst_hierarchy = sunburst_hierarchy[1:level]
       
       sunburstDF <- as.sunburstDF(data$cluster_info, sunburst_hierarchy,rootname="all")
-      sunburstDF$key <- 1:dim(sunburstDF)[1]
-      
+
       p <- plot_ly() %>%
         add_trace(ids = sunburstDF$ids,
                   labels = sunburstDF$labels,
@@ -593,27 +505,23 @@ server <- function(input, output, session) {
       p <- htmlwidgets::onRender(
         p,
         "
-  function(el, x) {
-    el.on('plotly_sunburstclick', function(d) {
-      if (d.points && d.points.length > 0) {
-        Shiny.setInputValue(
-          'sunburst_node_click',
-          {
-            label: d.points[0].label,
-            nonce: Date.now()
-          },
-          {priority: 'event'}
-        );
-      }
-
-      return false;
-    });
-  }
-  "
+          function(el, x) {
+            el.on('plotly_sunburstclick', function(d) {
+              if (d.points && d.points.length > 0) {
+                Shiny.setInputValue(
+                  'sunburst_node_click',
+                  {
+                    label: d.points[0].label,
+                    nonce: Date.now()
+                  },
+                  {priority: 'event'}
+                );
+              }
+              return false;
+            });
+          }
+        "
       )
-      
-      # Output 
-      write(sunburstDF$label,"label.txt")
       
     } else {
       ## CONSTELLATION PLOT GENERATION
@@ -644,18 +552,6 @@ server <- function(input, output, session) {
     event_register(p, "plotly_click")
     
   })
-  
-  # output$clickInfo <- renderPrint({
-  #   d <- event_data("plotly_click")
-  #   
-  #   if (is.null(d)) {
-  #     "Click on plot." 
-  #     } else {
-  #       label <- scan("label.txt",what="character",sep="\n")
-  #       label[d$pointNumber+1]
-  #     } 
-  # })
-  
   
 
   # This function sets the selected nodes
@@ -856,7 +752,7 @@ server <- function(input, output, session) {
   output$conditional_background_title <- renderUI({
     
     if(input$background_type=="Foreground vs. custom types"){
-      h4("Comparison cell types:")
+      h4("Comparison cell types (e.g., the ones used as background):")
     } else if(input$background_type=="Trajectory analysis"){
       return("Trajectory analysis can take a up to about a minute to run. Please be patient!")
     } else {
@@ -1010,6 +906,16 @@ server <- function(input, output, session) {
           write("input_gene_set",stderr())
           write(input_gene_set,stderr())
           
+          if (input$background_type == "Visualize known genes") {
+            return(
+              create_known_gene_table(
+                data,
+                rv_sunburst$selected_nodes$foreground,
+                in_genes = input_gene_set
+              )
+            )
+          }
+          
           if(input$background_type=="Trajectory analysis"){
             
             find_trajectory_genes(
@@ -1090,6 +996,15 @@ server <- function(input, output, session) {
         "WLS_T_Value",
         "WLS_P_Value",
         "WLS_FDR", 
+        "gene_categories________________________________________________________"
+      )
+      
+    } else if (input$background_type == "Visualize known genes") {
+      
+      # Preferred known-gene-table column order
+      preferred_order <- c(
+        "gene",
+        "mean.expression",
         "gene_categories________________________________________________________"
       )
       
@@ -1197,68 +1112,6 @@ server <- function(input, output, session) {
     }
   )
 
-  output$downloadPlot <- downloadHandler(    
-    
-    filename = "sifter_heatmap.pdf",
-    content = function(file) {
-      heatmap_plot <- buildplot(pfontsize=as.numeric(input$dlf), showclick = FALSE) + theme(line=element_line(size=0.4))
-      legend_plot <- build_legend_plot(pfontsize=as.numeric(input$dlf)) + theme(line=element_line(size=0.4),plot.margin = unit(c(0.1,0.35,0.1,0.35),"npc"))
-      
-      plot_list <- list(heatmap_plot,legend_plot)
-      out_h <- as.numeric(input$dlh)
-      out_w <- as.numeric(input$dlw)
-      plot <- arrangeGrob(grobs = plot_list,
-                          heights = c(out_h/8*7,out_h/8))
-      #device <- function(..., width, height) grDevices::pdf(..., width = width, height = height)
-      ggsave(file, plot = plot,
-             width=as.numeric(input$dlw), 
-             height=as.numeric(input$dlh))
-    }
-  )
-  
-  
-  # Expose input values
-  output$show_inputs <- renderTable({
-    
-    invals <- reactiveValuesToList(input)
-    
-    df_inputs <- data.frame(variable = rep("",length(invals)),
-                            type = rep("",length(invals)),
-                            length = rep("",length(invals)),
-                            current_value = rep("",length(invals)))
-    
-    for(i in 1:length(invals)) {
-      
-      var_name = names(invals)[i]
-      df_inputs$variable[i] <- paste0("input$",var_name)
-      
-      df_inputs$type[i] <- typeof(invals[[i]])
-      df_inputs$length[i] <- length(invals[[i]])
-      
-      if(length(invals[[i]]) == 1) {
-        
-        df_inputs$current_value[i] <- invals[[i]]
-        
-      } else if(is.vector(invals[[i]])) {
-        
-        df_inputs$current_value[i] <- paste0("c(",paste(invals[[i]],collapse=","),")")
-        
-      } else {
-        
-        df_inputs$current_value[i] <- typeof(invals[[i]])
-        
-      }
-      
-      
-    }
-    
-    df_inputs <- df_inputs %>%
-      arrange(variable)
-    
-    df_inputs
-    
-  })
-  
   
   
   get_genes_dotplot <- reactive({
@@ -1268,7 +1121,17 @@ server <- function(input, output, session) {
     
     de_table <- calculate_de_genes()
     
-    current_de_table <- de_table[input$de_table_rows_current,]
+    current_rows <- input$de_table_rows_current
+    
+    if (is.null(current_rows) || length(current_rows) == 0) {
+      current_rows <- seq_len(nrow(de_table))
+    }
+    
+    current_de_table <- de_table[
+      current_rows,
+      ,
+      drop = FALSE
+    ]
     # print(current_de_table)
     
     top10_genes <- as.character(
@@ -1288,24 +1151,76 @@ server <- function(input, output, session) {
   # NOTE:  THIS ALSO IS THE SAME FUNCTION CALL FOR THE TRAJECTORY PLOT!!!
   output$dotplot <- renderPlot({
     
-    req(get_genes_dotplot())
     req(rv_anno())
     
-    top10_genes <- get_genes_dotplot()
     data <- rv_anno()
     
-    if(input$background_type=="Trajectory analysis"){
+    if (input$background_type == "Visualize known genes") {
       
-      cat("Making trajectory plot \n")
-      generate_trajectory_plot(data, rv_sunburst$selected_nodes$foreground, top10_genes)
+      cat("Making known-gene dot plot \n")
+      
+      known_gene_table <- calculate_de_genes()
+      
+      shiny::validate(
+        shiny::need(
+          !is.null(known_gene_table) &&
+            is.data.frame(known_gene_table) &&
+            nrow(known_gene_table) > 0,
+          "None of the submitted genes are available in this data set."
+        )
+      )
+      
+      known_genes <- as.character(
+        known_gene_table[["gene"]]
+      )
+      
+      known_genes <- known_genes[
+        !is.na(known_genes) &
+          nzchar(known_genes)
+      ]
+      
+      shiny::validate(
+        shiny::need(
+          length(known_genes) > 0,
+          "None of the submitted genes are available in this data set."
+        )
+      )
+      
+      generate_known_gene_dot_plot(
+        data,
+        rv_sunburst$selected_nodes$foreground,
+        known_genes
+      )
       
     } else {
       
-      cat("Making dot plot \n")
-      generate_dot_plot(input, data, rv_sunburst$selected_nodes$foreground, rv_sunburst$selected_nodes$background, top10_genes)
+      req(get_genes_dotplot())
       
+      top10_genes <- get_genes_dotplot()
+      
+      if (input$background_type == "Trajectory analysis") {
+        
+        cat("Making trajectory plot \n")
+        
+        generate_trajectory_plot(
+          data,
+          rv_sunburst$selected_nodes$foreground,
+          top10_genes
+        )
+        
+      } else {
+        
+        cat("Making dot plot \n")
+        
+        generate_dot_plot(
+          input,
+          data,
+          rv_sunburst$selected_nodes$foreground,
+          rv_sunburst$selected_nodes$background,
+          top10_genes
+        )
+      }
     }
-    
   })
   
   output$CHARGE_gene_plot <- downloadHandler(

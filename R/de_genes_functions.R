@@ -58,9 +58,12 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
     
   if(!is.null(in_genes)){
     use_genes = intersect(all_genes,in_genes)
-    if(length(use_genes)<2){
-      showNotification("Warning: fewer than two genes included. Defaulting to normal differential expression calculation.", type = "warning")
-      in_genes = NULL
+    if (length(use_genes) < 1) {
+      showNotification(
+        "Warning: none of the supplied genes are available in this data set.",
+        type = "warning"
+      )
+      return(data.frame())
     } else {
       missing_genes = setdiff(in_genes,use_genes)
       if(length(missing_genes)>0){
@@ -68,10 +71,10 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
         showNotification(paste("Warning:",missing_genes,"are not valid genes in this data set."), type = "warning")
       }
       rownames(counts) <- rownames(sums) <- rownames(props) <- rownames(means) <- all_genes
-      counts <- counts[use_genes,]
-      sums   <- sums[use_genes,]
-      props  <- props[use_genes,]
-      means  <- means[use_genes,]
+      counts <- counts[use_genes, , drop = FALSE]
+      sums   <- sums[use_genes, , drop = FALSE]
+      props  <- props[use_genes, , drop = FALSE]
+      means  <- means[use_genes, , drop = FALSE]
     }
   } else {
     use_genes = all_genes
@@ -80,8 +83,8 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
   #########################################
   
   # Subset of count matrix  per group
-  g1_data <- counts[, g1_ids]
-  g2_data <- counts[, g2_ids]
+  g1_data <- counts[, g1_ids, drop = FALSE]
+  g2_data <- counts[, g2_ids, drop = FALSE]
   
   # Proportions of cells in each group expressing each gene
   if(length(g1_ids)>1){
@@ -175,7 +178,6 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
 	
 	## Read gene categories (from function in separate file)
 	source("read_gene_lists.r", local=TRUE)
-	output$ABC_atlas___ = "Coming soon!"
 	rownames(output) = NULL
 	
 	# Return the table
@@ -205,17 +207,20 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL, filter=TRUE) {
   
   if(!is.null(in_genes)){
     use_genes = intersect(rownames(means),in_genes)
-    if(length(use_genes)<2){
-      showNotification("Warning: fewer than two genes included. Defaulting to normal differential expression calculation.", type = "warning")
-      in_genes = NULL
+    if (length(use_genes) < 1) {
+      showNotification(
+        "Warning: none of the supplied genes are available in this data set.",
+        type = "warning"
+      )
+      return(data.frame())
     } else {
       missing_genes = setdiff(in_genes,use_genes)
       if(length(missing_genes)>0){
         missing_genes <- paste(missing_genes,collapse=", ")
         showNotification(paste("Warning:",missing_genes,"are not valid genes in this data set."), type = "warning")
       }
-      sds      <- sds[use_genes,]
-      means    <- means[use_genes,]
+      sds      <- sds[use_genes, , drop = FALSE]
+      means    <- means[use_genes, , drop = FALSE]
       num_runs <- dim(means)[1]
     }
   } 
@@ -303,7 +308,6 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL, filter=TRUE) {
   output <- data.frame(gene=rownames(output),output)
   rownames(output) <- NULL
   source("read_gene_lists.r", local=TRUE)
-  output$ABC_atlas___ = "Coming soon!"
   rownames(output) = NULL
   
   # Return the table
@@ -311,6 +315,56 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL, filter=TRUE) {
   
 }
 
+
+# This function returns the gene name, mean expression, and gene sets for input genes
+create_known_gene_table <- function(data, g1_ids, in_genes = NULL) {
+  
+  # Deal with edge case where only one cell type is selected
+  if(length(g1_ids)<1){
+    showNotification("Error: At least one gene is required to display.", type = "warning")
+    return(data.frame())
+  }
+  
+  ## Define variables
+  means   <- data$means[, g1_ids]
+  
+  use_genes = intersect(rownames(means),in_genes)
+  
+  if (length(use_genes) == 0) {
+    return(
+      data.frame(
+        gene = character(0),
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+
+  if(!is.null(in_genes)){
+    if(length(use_genes)<1){
+      showNotification("Warning: fewer than one gene included.", type = "warning")
+      in_genes = NULL
+    } else {
+      missing_genes = setdiff(in_genes,use_genes)
+      if(length(missing_genes)>0){
+        missing_genes <- paste(missing_genes,collapse=", ")
+        showNotification(paste("Warning:",missing_genes,"are not valid genes in this data set."), type = "warning")
+      }
+      means    <- means[use_genes, , drop = FALSE]
+    }
+  } 
+  
+  # create data frame
+  output = data.frame(gene=rownames(means), mean.expression = round(rowMeans(means),3), stringsAsFactors = FALSE)
+  rownames(output) <- NULL
+  
+  ## Read gene categories (from function in separate file)
+  source("read_gene_lists.r", local=TRUE)
+  rownames(output) = NULL
+  
+  # Return the table
+  output
+  
+}
 
 
 

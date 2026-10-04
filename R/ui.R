@@ -338,40 +338,71 @@ ui <- function(request) {
                      choices = c("Foreground vs. local types",
                                  "Foreground vs. custom types",
                                  "Foreground vs. all other types",
-                                 "Trajectory analysis"),
+                                 "Trajectory analysis",
+                                 "Visualize known genes"),
                      selected = "Foreground vs. local types"
                    ),
                    uiOutput("local_context_level_ui"),
-                   h4("Foreground cell types:"),
+                   conditionalPanel(
+                     condition = "input.background_type != 'Visualize known genes'",
+                     h4("Foreground cell types:")
+                   ),
+                   
+                   conditionalPanel(
+                     condition = "input.background_type == 'Visualize known genes'",
+                     h4("Cell types to include in display"),
+                     p("Choose 'all' in the Sunburst plot to show the full taxonomy.")
+                   ),
+                   
                    verbatimTextOutput("currentFilterIDs"),
-                   p("After adjusting your filters, press the green or purple button and then scroll down."),
-                   radioButtons(
-                     inputId = "gene_return_mode",
-                     label = "Choose gene output:",
-                     choices = c(
-                       "Return top marker genes (faster)" = "fast",
-                       "Return all genes (slower)" = "all"
-                     ),
-                     selected = "fast",
-                     inline = TRUE
+                   
+                   conditionalPanel(
+                     condition = "input.background_type != 'Visualize known genes'",
+                     p("After adjusting your filters, press the green or purple button and then scroll down.")
+                   ),
+                   
+                   conditionalPanel(
+                     condition = "input.background_type == 'Visualize known genes'",
+                     p("After adjusting your filters, provide a gene list and then scroll down.")
+                   ),
+                   conditionalPanel(
+                     condition = "input.background_type != 'Visualize known genes'",
+                     
+                     radioButtons(
+                       inputId = "gene_return_mode",
+                       label = "Choose gene output:",
+                       choices = c(
+                         "Return top marker genes (fast)" = "fast",
+                         "Return all genes (slow)" = "all"
+                       ),
+                       selected = "fast",
+                       inline = TRUE
+                     )
                    ),
                    fluidRow(
-                     column(4,
-                            actionButton("clearFilter", "Clear Foreground Filter")
+                     column(
+                       4,
+                       actionButton("clearFilter", "Clear Cell Type Filter")
                      ),
-                     column(4,
-                            actionButton(
-                              "find_degenes",
-                              "Find Relevant Genes",
-                              style = "color: #fff; background-color: #39B54A; border-color: #006838; font-weight: bold;"
-                            )
+                     
+                     conditionalPanel(
+                       condition = "input.background_type != 'Visualize known genes'",
+                       class = "col-sm-4",
+                       
+                       actionButton(
+                         "find_degenes",
+                         "Find Relevant Genes",
+                         style = "color: #fff; background-color: #39B54A; border-color: #006838; font-weight: bold;"
+                       )
                      ),
-                     column(4,
-                            actionButton(
-                              "known_genes",
-                              "Provide a gene list",
-                              style = "color: #fff; background-color: #8E4585; border-color: #006838; font-weight: bold;"
-                            )
+                     
+                     column(
+                       4,
+                       actionButton(
+                         "known_genes",
+                         "Provide a gene list",
+                         style = "color: #fff; background-color: #8E4585; border-color: #006838; font-weight: bold;"
+                       )
                      )
                    ),
                    
@@ -441,7 +472,7 @@ ui <- function(request) {
       ),
       
       conditionalPanel(
-        condition = "input.find_degenes > 0",
+        condition = "input.find_degenes > 0 || input.submit_data > 0",
         
         hr(style = "border-top: 3px solid #000000;"),
         h3("Gene analysis results"),
@@ -451,7 +482,6 @@ ui <- function(request) {
         fluidRow(column(
           12,
           withSpinner(DT::dataTableOutput("de_table")),
-          verbatimTextOutput("click_info")
         )),
         
         fluidRow(column(

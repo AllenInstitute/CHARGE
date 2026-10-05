@@ -44,6 +44,33 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
 	# Filter g2 to remove any overlap with g1
   g2_ids <- setdiff(g2_ids, g1_ids)
   
+  ## error checking
+  g1_ids <- intersect(
+    g1_ids,
+    colnames(counts)
+  )
+  
+  g2_ids <- intersect(
+    g2_ids,
+    colnames(counts)
+  )
+  
+  if (length(g1_ids) == 0) {
+    showNotification(
+      "Error: no valid foreground cell types were selected.",
+      type = "error"
+    )
+    return(data.frame())
+  }
+  
+  if (length(g2_ids) == 0) {
+    showNotification(
+      "Error: no comparison cell types are available for this selection.",
+      type = "error"
+    )
+    return(data.frame())
+  }
+  
   write(paste("Number of g2_ids:",length(g2_ids)),stderr())
 
   # Total number of cells per group
@@ -87,30 +114,26 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
   g2_data <- counts[, g2_ids, drop = FALSE]
   
   # Proportions of cells in each group expressing each gene
-  if(length(g1_ids)>1){
-    g1_counts <- rowSums(g1_data)
-  } else {
-    g1_counts = g1_data
-  }
-  if(length(g2_ids)>1){
-    g2_counts <- rowSums(g2_data)
-  } else {
-    g2_counts = g2_data
-  }
+  g1_counts <- rowSums(
+    g1_data,
+    na.rm = TRUE
+  )
+  g2_counts <- rowSums(
+    g2_data,
+    na.rm = TRUE
+  )
   g1_props  <- g1_counts/g1_n
   g2_props  <- g2_counts/g2_n
 
 	# Calculate the log-normalized group sums and means
-  if(length(g1_ids)>1){
-    g1_sums1 <- rowSums(sums[, g1_ids])
-  } else {
-    g1_sums1 <- sums[, g1_ids]
-  }
-  if(length(g2_ids)>1){
-    g2_sums1 <- rowSums(sums[, g2_ids])
-  } else {
-    g2_sums1 <- sums[, g2_ids]
-  }
+  g1_sums1 <- rowSums(
+    sums[, g1_ids, drop = FALSE],
+    na.rm = TRUE
+  )
+  g2_sums1 <- rowSums(
+    sums[, g2_ids, drop = FALSE],
+    na.rm = TRUE
+  )
 	g1_means <- log2(g1_sums1/g1_n+1)
   g2_means <- log2(g2_sums1/g2_n+1)
 	
@@ -122,6 +145,13 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
   propMeanScore <- log2(((g1_props + epsilon_1)/(g2_props + epsilon_1))*
                                 ((g1_means + epsilon_2)/(g2_means + epsilon_2)))
 
+  stopifnot(
+    length(g1_props) == length(use_genes),
+    length(g2_props) == length(use_genes),
+    length(g1_means) == length(use_genes),
+    length(g2_means) == length(use_genes)
+  )
+  
 	# Choose top DEX genes based on difference in proportion
 	output <- data.frame(gene = use_genes, 
 	                     prop_diff     = round(g1_props - g2_props,5), 
@@ -265,8 +295,8 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL, filter=TRUE) {
   }
   
   ## Define variables
-  means   <- data$means[, g1_ids]
-  sds     <- data$sds[, g1_ids]
+  means   <- data$means[, g1_ids, drop = FALSE]
+  sds     <- data$sds[, g1_ids, drop = FALSE]
   count_n <- data$count_n[g1_ids]
   num_runs<- dim(means)[1]
   
@@ -389,12 +419,12 @@ create_known_gene_table <- function(data, g1_ids, in_genes = NULL) {
   
   # Deal with edge case where only one cell type is selected
   if(length(g1_ids)<1){
-    showNotification("Error: At least one gene is required to display.", type = "warning")
+    showNotification("Error: At least one cell type is required to display genes.", type = "warning")
     return(data.frame())
   }
   
   ## Define variables
-  means   <- data$means[, g1_ids]
+  means   <- data$means[, g1_ids, drop = FALSE]
   
   use_genes = intersect(rownames(means),in_genes)
   

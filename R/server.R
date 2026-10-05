@@ -41,6 +41,8 @@ server <- function(input, output, session) {
   
   init <- reactiveValues(vals = list())
   
+  restored_hierarchy_level <- reactiveVal(NULL)
+  
   # Build initial values list
   # These are used to set the state of the input values for UI elements
   
@@ -97,6 +99,10 @@ server <- function(input, output, session) {
   })
   
   onRestore(function(state) {
+    restored_hierarchy_level(
+      state$input$hierarchy_level
+    )
+    
     fg <- state$values$foreground
     bg <- state$values$background
     
@@ -336,22 +342,48 @@ server <- function(input, output, session) {
   ##    Define hierarchy     ##
   #############################
   
-  
   rv_hierarchy_options <- reactive({
     data <- rv_anno()
     data$hierarchy
   })
   
   observeEvent(rv_hierarchy_options(), {
-    hierarchy_options = rv_hierarchy_options()
-    updateSelectInput(session, 
-                      inputId = "hierarchy_level", 
-                      label = "Choose level of hierarchy:", 
-                      choices = hierarchy_options,
-                      selected = hierarchy_options[1]
+    # Updated to address bookmarking order of operations
+    hierarchy_options <- rv_hierarchy_options()
+    
+    bookmarked_level <- restored_hierarchy_level()
+    current_level <- isolate(input$hierarchy_level)
+    
+    if (
+      !is.null(bookmarked_level) &&
+      bookmarked_level %in% hierarchy_options
+    ) {
+      
+      selected_level <- bookmarked_level
+      
+    } else if (
+      !is.null(current_level) &&
+      current_level %in% hierarchy_options
+    ) {
+      
+      selected_level <- current_level
+      
+    } else {
+      
+      selected_level <- hierarchy_options[1]
+    }
+    
+    updateSelectInput(
+      session,
+      inputId = "hierarchy_level",
+      label = "Choose level of hierarchy:",
+      choices = hierarchy_options,
+      selected = selected_level
     )
     
+    restored_hierarchy_level(NULL)
   })
+  
   
   output$local_context_level_ui <- renderUI({
     req(rv_hierarchy_options())

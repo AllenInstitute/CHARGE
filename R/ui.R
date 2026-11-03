@@ -117,6 +117,8 @@ ui <- function(request) {
         tags$link(rel = "icon", type = "image/x-icon", href = "CHARGE.ico"),
         tags$script(HTML("document.title = 'CHARGE';")),
         
+        includeHTML("google-analytics.html"), # For tracking usage
+
         tags$style(HTML("
 
           /* ==========================================================

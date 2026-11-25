@@ -1,6 +1,6 @@
 # This function defines and returns genes and associated statistics for genes differentially expressed between a foreground and background set of cell types.
 find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=TRUE) {
-
+  
   ## Define variables
   counts       <- data$counts
   count_n      <- data$count_n
@@ -11,37 +11,37 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
   level        <- input$hierarchy_level
   means        <- data$means
   props        <- data$props
-	
-	## Update g2_ids depending on the requested analysis
-	if(input$background_type=="Foreground vs. all other types"){
-	  g2_ids <- unique(cluster_info[,paste0(level,"_label")])
-	}
-	if(input$background_type=="Foreground vs. local types"){
-	  if(level==hierarchy[length(hierarchy)]){ 
-	    g2_ids <- unique(cluster_info[,paste0(level,"_label")])
-	  } else{
-	    level2 <- local_context_level # hierarchy[which(hierarchy==level)+1]
-	    keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
-	    keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
-	    g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
-	    
-	    # Deal with edge case where all cell types in a given background are selected (and therefore there are 0 background types)
-	    if(length(g2_ids)==length(g1_ids)){
-	      if(length(hierarchy)>=(which(hierarchy==level)+2)){
-	        showNotification("Warning: no background types one level above. Setting background as two levels above.", type = "warning")
-	        level2 <- hierarchy[which(hierarchy==level)+2]
-	        keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
-	        keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
-	        g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
-	      } else{
-	        showNotification("Error: no background types available. Please select different options.", type = "warning")
-	      }
-	    }
-	    
-	  }
-	}
-	
-	# Filter g2 to remove any overlap with g1
+  
+  ## Update g2_ids depending on the requested analysis
+  if(input$background_type=="Foreground vs. all other types"){
+    g2_ids <- unique(cluster_info[,paste0(level,"_label")])
+  }
+  if(input$background_type=="Foreground vs. local types"){
+    if(level==hierarchy[length(hierarchy)]){ 
+      g2_ids <- unique(cluster_info[,paste0(level,"_label")])
+    } else{
+      level2 <- local_context_level # hierarchy[which(hierarchy==level)+1]
+      keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
+      keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
+      g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
+      
+      # Deal with edge case where all cell types in a given background are selected (and therefore there are 0 background types)
+      if(length(g2_ids)==length(g1_ids)){
+        if(length(hierarchy)>=(which(hierarchy==level)+2)){
+          showNotification("Warning: no background types one level above. Setting background as two levels above.", type = "warning")
+          level2 <- hierarchy[which(hierarchy==level)+2]
+          keep_level2 <- cluster_info[,paste0(level,"_label")] %in% g1_ids
+          keep_level2 <- cluster_info[keep_level2,paste0(level2,"_label")]
+          g2_ids <- unique(cluster_info[cluster_info[,paste0(level2,"_label")] %in% keep_level2,paste0(level,"_label")])
+        } else{
+          showNotification("Error: no background types available. Please select different options.", type = "warning")
+        }
+      }
+      
+    }
+  }
+  
+  # Filter g2 to remove any overlap with g1
   g2_ids <- setdiff(g2_ids, g1_ids)
   
   ## error checking
@@ -72,17 +72,17 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
   }
   
   write(paste("Number of g2_ids:",length(g2_ids)),stderr())
-
+  
   # Total number of cells per group
   g1_n <- sum(count_n[names(count_n) %in% g1_ids])
   g2_n <- sum(count_n[names(count_n) %in% g2_ids])
-
+  
   # Gene names
   all_genes <- rownames(counts)
   
   #########################################
   ### NEW - FOR USER-PROVIDED GENE SETS ###
-    
+  
   if(!is.null(in_genes)){
     use_genes = intersect(all_genes,in_genes)
     if (length(use_genes) < 1) {
@@ -113,38 +113,27 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
   g1_data <- counts[, g1_ids, drop = FALSE]
   g2_data <- counts[, g2_ids, drop = FALSE]
   
-  # Proportions of cells in each group expressing each gene
-  g1_counts <- rowSums(
-    g1_data,
-    na.rm = TRUE
-  )
-  g2_counts <- rowSums(
-    g2_data,
-    na.rm = TRUE
-  )
-  g1_props  <- g1_counts/g1_n
-  g2_props  <- g2_counts/g2_n
-
-	# Calculate the log-normalized group sums and means
-  g1_sums1 <- rowSums(
-    sums[, g1_ids, drop = FALSE],
-    na.rm = TRUE
-  )
-  g2_sums1 <- rowSums(
-    sums[, g2_ids, drop = FALSE],
-    na.rm = TRUE
-  )
-	g1_means <- log2(g1_sums1/g1_n+1)
+  # Keep the slices two-dimensional, even for a single selected type.
+  g1_counts <- Matrix::rowSums(counts[, g1_ids, drop = FALSE])
+  g2_counts <- Matrix::rowSums(counts[, g2_ids, drop = FALSE])
+  
+  g1_props <- g1_counts / g1_n
+  g2_props <- g2_counts / g2_n
+  
+  g1_sums1 <- Matrix::rowSums(sums[, g1_ids, drop = FALSE])
+  g2_sums1 <- Matrix::rowSums(sums[, g2_ids, drop = FALSE])
+  
+  g1_means <- log2(g1_sums1/g1_n+1)
   g2_means <- log2(g2_sums1/g2_n+1)
-	
+  
   # Calculate differential gene score based on mean and proportions from Sten Linnarsson's group
   # E[i,j] = ((f[i,j] + epsilon_1)/(f[i,j_hat] + epsilon_1))*((mu[i,j] + epsilon_2)/(mu[i,j_hat] + epsilon_2))
   #where f(i,j) is the fraction of non-zero expression values in the cluster and f(i,j_hat) is the fraction of non-zero expression values for cells not in the cluster. Similarly, mu(i,j) is the mean expression in the cluster and mu(i,j_hat) is the mean expression for cells not in the cluster. Small constants are added to prevent the enrichment score from going to infinity as the mean or non-zero fractions go to zero (we use epsilon_1 = 0.1 and epsilon_2 = 0.01). This formula captures both enrichment in terms of levels (mu) and in terms of fraction expressing cells (f). There is no natural cutoff, so we usually simply look at the top ten genes, but of course you could compute a null distribution using shuffled data and get a P value.
   epsilon_1 = 0.1
   epsilon_2 = 0.01
   propMeanScore <- log2(((g1_props + epsilon_1)/(g2_props + epsilon_1))*
-                                ((g1_means + epsilon_2)/(g2_means + epsilon_2)))
-
+                          ((g1_means + epsilon_2)/(g2_means + epsilon_2)))
+  
   stopifnot(
     length(g1_props) == length(use_genes),
     length(g2_props) == length(use_genes),
@@ -152,138 +141,146 @@ find_de_genes <- function(data, input, g1_ids, g2_ids, in_genes = NULL, filter=T
     length(g2_means) == length(use_genes)
   )
   
-	# Choose top DEX genes based on difference in proportion
-	output <- data.frame(gene = use_genes, 
-	                     prop_diff     = round(g1_props - g2_props,5), 
-	                     log2_FC       = round(g1_means - g2_means,3),
-	                     propMeanScore = round(propMeanScore,3),
-	                     gr1_prop = round(g1_props,3),
-	                     gr1_mean = round(g1_means,3),
-	                     gr2_prop = round(g2_props,3), 
-	                     gr2_mean = round(g2_means,3),
-	                     stringsAsFactors = F)
-	output$consensus_score = round(output$prop_diff * output$log2_FC * output$propMeanScore,5)
-	
-	# Hard-coded filters (could be added as input later)
-	meanSum       = 1
-	absPropDiff   = 0.1
-	
-	# Define the output table
-	if(is.null(in_genes)){
-	  if(filter){
-	    output <- output %>%
-	      filter(abs(prop_diff) > absPropDiff) %>%
-	      filter(gr1_mean + gr2_mean > meanSum) %>%
-	      arrange(-consensus_score)
-	  } else {
-	    output <- output %>% arrange(-consensus_score)
-	  }
-	  
-	}
-	
-	##############################
-	## Add additional statistics for the subset of genes still included
-	
-	genesUse = output$gene
-	
-
-	# Calculate the ranked biserial correlation (as a metric for specificity)
-	# To get a score that reflects both the purity of the groups and the direction of the sorting (e.g., A's before B's), we use the Rank Biserial Correlation Coefficient (r_b), which is a non-parametric measure of effect size for a two-group ranking. It quantifies how well a binary classification (like being in group A or B) predicts the rank order of the items.
-	mean_data <- means[
-	  genesUse,
-	  c(g1_ids, g2_ids),
-	  drop = FALSE
-	]
-	
-	prop_data <- props[
-	  genesUse,
-	  c(g1_ids, g2_ids),
-	  drop = FALSE
-	]
-	
-	calculate_row_rbc <- function(data_matrix) {
-	  
-	  vapply(
-	    seq_len(nrow(data_matrix)),
-	    FUN = function(i) {
-	      
-	      group_a <- as.numeric(
-	        data_matrix[i, seq_along(g1_ids), drop = TRUE]
-	      )
-	      
-	      group_b <- as.numeric(
-	        data_matrix[
-	          i,
-	          length(g1_ids) + seq_along(g2_ids),
-	          drop = TRUE
-	        ]
-	      )
-	      
-	      group_a <- group_a[is.finite(group_a)]
-	      group_b <- group_b[is.finite(group_b)]
-	      
-	      if (length(group_a) == 0 || length(group_b) == 0) {
-	        return(NA_real_)
-	      }
-	      
-	      mean(
-	        sign(
-	          outer(group_a, group_b, FUN = "-")
-	        )
-	      )
-	    },
-	    FUN.VALUE = numeric(1)
-	  )
-	}
-	
-	mean_rank_biserial_corr <- calculate_row_rbc(mean_data)
-	prop_rank_biserial_corr <- calculate_row_rbc(prop_data)
-	
-	rank_biserial_corr <- rowMeans(
-	  cbind(
-	    mean_rank_biserial_corr,
-	    prop_rank_biserial_corr
-	  ),
-	  na.rm = TRUE
-	)
-	
-	rank_biserial_corr[
-	  !is.finite(rank_biserial_corr)
-	] <- NA_real_
-	
-	rank_biserial_corr <- signif(
-	  rank_biserial_corr,
-	  5
-	)
-	
-	datIn <- cbind(mean_data, prop_data)
-	
-	# Calculate the overlap coefficient. A formal statistical metric for quantifying the overlap between two distributions is the overlapping coefficient (OVL). This measures the area of intersection between the probability density functions of two distributions. A low OVL value indicates a high degree of separation between the groups, while a high value means they are largely indistinguishable. The value of OVL ranges from 0 (no overlap) to 1 (complete overlap). This is a general measure of separation
-	# In this case we'll take the average value when running this test on means and proportions
-	if(min(length(g1_ids),length(g2_ids))>1){
-	  overlap_coefficient <- apply(datIn,1,overlap_coefficient_wrapper,
-	                               c(rep("A",length(g1_ids)),rep("B",length(g2_ids))))
-	} else {
-	  overlap_coefficient <- rep(
-	    NA_real_,
-	    length(genesUse)
-	  )
-	}
-	
-	## Add the new statistics and reorder so they show up earlier
-	output = cbind(output, rank_biserial_corr, overlap_coefficient)
-	#output = output[,c(1:4,7:10,5:6)]
-	
-	## Read gene categories (from function in separate file)
-	source("read_gene_lists.r", local=TRUE)
-	rownames(output) = NULL
-	
-	# Return the table
-	output
-	
+  # Choose top DEX genes based on difference in proportion
+  output <- data.frame(gene = use_genes, 
+                       prop_diff     = round(g1_props - g2_props,5), 
+                       log2_FC       = round(g1_means - g2_means,3),
+                       propMeanScore = round(propMeanScore,3),
+                       gr1_prop = round(g1_props,3),
+                       gr1_mean = round(g1_means,3),
+                       gr2_prop = round(g2_props,3), 
+                       gr2_mean = round(g2_means,3),
+                       stringsAsFactors = F)
+  output$consensus_score = round(output$prop_diff * output$log2_FC * output$propMeanScore,5)
+  
+  # Hard-coded filters (could be added as input later)
+  meanSum       = 1
+  absPropDiff   = 0.1
+  
+  # Define the output table
+  if(is.null(in_genes)){
+    if(filter){
+      output <- output %>%
+        filter(abs(prop_diff) > absPropDiff) %>%
+        filter(gr1_mean + gr2_mean > meanSum) %>%
+        arrange(-consensus_score)
+    } else {
+      output <- output %>% arrange(-consensus_score)
+    }
+    
+  }
+  
+  ##############################
+  ## Add additional statistics for the subset of genes still included
+  
+  genesUse = output$gene
+  
+  
+  # Calculate the ranked biserial correlation (as a metric for specificity)
+  # To get a score that reflects both the purity of the groups and the direction of the sorting (e.g., A's before B's), we use the Rank Biserial Correlation Coefficient (r_b), which is a non-parametric measure of effect size for a two-group ranking. It quantifies how well a binary classification (like being in group A or B) predicts the rank order of the items.
+  mean_data <- means[
+    genesUse,
+    c(g1_ids, g2_ids),
+    drop = FALSE
+  ]
+  
+  prop_data <- props[
+    genesUse,
+    c(g1_ids, g2_ids),
+    drop = FALSE
+  ]
+  
+  calculate_row_rbc <- function(data_matrix) {
+    
+    vapply(
+      seq_len(nrow(data_matrix)),
+      FUN = function(i) {
+        
+        group_a <- as.numeric(
+          data_matrix[i, seq_along(g1_ids), drop = TRUE]
+        )
+        
+        group_b <- as.numeric(
+          data_matrix[
+            i,
+            length(g1_ids) + seq_along(g2_ids),
+            drop = TRUE
+          ]
+        )
+        
+        group_a <- group_a[is.finite(group_a)]
+        group_b <- group_b[is.finite(group_b)]
+        
+        if (length(group_a) == 0 || length(group_b) == 0) {
+          return(NA_real_)
+        }
+        
+        mean(
+          sign(
+            outer(group_a, group_b, FUN = "-")
+          )
+        )
+      },
+      FUN.VALUE = numeric(1)
+    )
+  }
+  
+  mean_rank_biserial_corr <- calculate_row_rbc(mean_data)
+  prop_rank_biserial_corr <- calculate_row_rbc(prop_data)
+  
+  rank_biserial_corr <- rowMeans(
+    cbind(
+      mean_rank_biserial_corr,
+      prop_rank_biserial_corr
+    ),
+    na.rm = TRUE
+  )
+  
+  rank_biserial_corr[
+    !is.finite(rank_biserial_corr)
+  ] <- NA_real_
+  
+  rank_biserial_corr <- signif(
+    rank_biserial_corr,
+    5
+  )
+  
+  datIn <- cbind(mean_data, prop_data)
+  
+  # Calculate the overlap coefficient. A formal statistical metric for quantifying the overlap between two distributions is the overlapping coefficient (OVL). This measures the area of intersection between the probability density functions of two distributions. A low OVL value indicates a high degree of separation between the groups, while a high value means they are largely indistinguishable. The value of OVL ranges from 0 (no overlap) to 1 (complete overlap). This is a general measure of separation
+  # In this case we'll take the average value when running this test on means and proportions
+  if(min(length(g1_ids),length(g2_ids))>1){
+    overlap_coefficient <- apply(datIn,1,overlap_coefficient_wrapper,
+                                 c(rep("A",length(g1_ids)),rep("B",length(g2_ids))))
+  } else {
+    overlap_coefficient <- rep(
+      NA_real_,
+      length(genesUse)
+    )
+  }
+  
+  ## Add the new statistics and reorder so they show up earlier
+  output = cbind(output, rank_biserial_corr, overlap_coefficient)
+  #output = output[,c(1:4,7:10,5:6)]
+  
+  ## Read gene categories (from function in separate file)
+  source("read_gene_lists.r", local=TRUE)
+  rownames(output) = NULL
+  
+  # Return the table
+  output
+  
 }
 
 
+
+# Compute row means without relying on Matrix::rowMeans dispatch for sparse data.
+.charge_gene_row_means <- function(x) {
+  if (inherits(x, "sparseMatrix")) {
+    return(Matrix::rowSums(x) / ncol(x))
+  }
+  base::rowMeans(x)
+}
 
 # This function defines and returns genes and associated statistics for genes showing a trajectory pattern in a single ordered set of cell types.
 find_trajectory_genes <- function(data, g1_ids, in_genes = NULL, filter=TRUE) {
@@ -382,7 +379,7 @@ find_trajectory_genes <- function(data, g1_ids, in_genes = NULL, filter=TRUE) {
   output$WLS_FDR <- p.adjust(output[,"WLS_P_Value"], method = "fdr")
   
   # Add means
-  output$mean.expression = rowMeans(means)
+  output$mean.expression = .charge_gene_row_means(means)
   
   # Hard-coded filters (could be added as input later)
   
@@ -436,7 +433,7 @@ create_known_gene_table <- function(data, g1_ids, in_genes = NULL) {
       )
     )
   }
-
+  
   if(!is.null(in_genes)){
     if(length(use_genes)<1){
       showNotification("Warning: fewer than one gene included.", type = "warning")
@@ -452,7 +449,7 @@ create_known_gene_table <- function(data, g1_ids, in_genes = NULL) {
   } 
   
   # create data frame
-  output = data.frame(gene=rownames(means), mean.expression = round(rowMeans(means),3), stringsAsFactors = FALSE)
+  output = data.frame(gene=rownames(means), mean.expression = round(.charge_gene_row_means(means),3), stringsAsFactors = FALSE)
   rownames(output) <- NULL
   
   ## Read gene categories (from function in separate file)
@@ -600,5 +597,3 @@ calculate_overlap_coefficient <- function(x1, x2, n = 512) {
     min(1, overlap)
   )
 }
-
-

@@ -46,13 +46,21 @@ generate_dot_plot <- function(input, data, g1_ids, g2_ids, genes){
   clusters     <- colnames(data_means)
   
   ## Convert matrices to long format
-  df_color_long <- as.data.frame(data_means[genes, , drop = FALSE]) %>%
+  df_color_long <- as.data.frame(
+    as.matrix(data_means[genes, , drop = FALSE])
+  ) %>%
     tibble::rownames_to_column(var = "Gene") %>%
-    pivot_longer(cols = -Gene, names_to = "Cluster", values_to = "ColorValue")
+    tidyr::pivot_longer(
+      cols = -Gene, names_to = "Cluster", values_to = "ColorValue"
+    )
   
-  df_size_long <- as.data.frame(data_props[genes, , drop = FALSE]) %>%
+  df_size_long <- as.data.frame(
+    as.matrix(data_props[genes, , drop = FALSE])
+  ) %>%
     tibble::rownames_to_column(var = "Gene") %>%
-    pivot_longer(cols = -Gene, names_to = "Cluster", values_to = "SizeValue")
+    tidyr::pivot_longer(
+      cols = -Gene, names_to = "Cluster", values_to = "SizeValue"
+    )
   
   ## Combine into a single data frame
   # Ensure Gene and Cluster columns are factors with desired order

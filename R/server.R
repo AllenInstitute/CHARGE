@@ -537,40 +537,40 @@ server <- function(input, output, session) {
       p <- htmlwidgets::onRender(
         p,
         "
-  function(el, x) {
-    el.on('plotly_sunburstclick', function(d) {
-      var point = d.points && d.points[0];
-      if (!point) return false;
-
-      var mode = document.querySelector(
-        '#sunburst_inner_ring_behavior input:checked'
-      );
-
-      var trace = el.data[point.curveNumber || 0];
-      var nodeId = point.id;
-      if (nodeId == null && trace && trace.ids) {
-        nodeId = trace.ids[point.pointNumber];
-      }
-
-      var hasChildren = nodeId != null &&
-        trace && trace.parents &&
-        trace.parents.some(function(parentId) {
-          return String(parentId) === String(nodeId);
-        });
-
-      if (mode && mode.value === 'drill' && hasChildren) {
-        return true;
-      }
-
-      Shiny.setInputValue(
-        'sunburst_node_click',
-        {label: point.label, nonce: Date.now()},
-        {priority: 'event'}
-      );
-      return false;
-    });
-  }
-  "
+        function(el, x) {
+          el.on('plotly_sunburstclick', function(d) {
+            var point = d.points && d.points[0];
+            if (!point) return false;
+      
+            var mode = document.querySelector(
+              '#sunburst_inner_ring_behavior input:checked'
+            );
+      
+            var trace = el.data[point.curveNumber || 0];
+            var nodeId = point.id;
+            if (nodeId == null && trace && trace.ids) {
+              nodeId = trace.ids[point.pointNumber];
+            }
+      
+            var hasChildren = nodeId != null &&
+              trace && trace.parents &&
+              trace.parents.some(function(parentId) {
+                return String(parentId) === String(nodeId);
+              });
+      
+            if (mode && mode.value === 'drill' && hasChildren) {
+              return true;
+            }
+      
+            Shiny.setInputValue(
+              'sunburst_node_click',
+              {label: point.label, nonce: Date.now()},
+              {priority: 'event'}
+            );
+            return false;
+          });
+        }
+        "
       )
       
     } else {

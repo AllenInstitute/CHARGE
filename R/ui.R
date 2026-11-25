@@ -291,6 +291,14 @@ ui <- function(request) {
             color: white !important;
             border: 5px solid #301934;
           }
+          
+          /* ==========================================================
+             BOX HEIGHT FOR CELL TYPE SELECTION
+             ========================================================== */
+          
+          .box:not(.collapsed-box):has(> .box-body > .charge-cell-type-row) {
+            min-height: 800px;
+          }
 
         "))
       ),
@@ -328,9 +336,10 @@ ui <- function(request) {
         box(
           title = "Select cell types for analysis and analysis type",
           solidHeader = TRUE, status = "primary", width = 12,
-          collapsible = TRUE, collapsed = FALSE, height = 800,
+          collapsible = TRUE, collapsed = FALSE,
           
           fluidRow(
+            class = "charge-cell-type-row",
             column(5,
                    selectInput("hierarchy_level", "Choose level of hierarchy:", choices = NULL),
                    uiOutput("plot_type_selection"),

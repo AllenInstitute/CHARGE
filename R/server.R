@@ -537,22 +537,40 @@ server <- function(input, output, session) {
       p <- htmlwidgets::onRender(
         p,
         "
-          function(el, x) {
-            el.on('plotly_sunburstclick', function(d) {
-              if (d.points && d.points.length > 0) {
-                Shiny.setInputValue(
-                  'sunburst_node_click',
-                  {
-                    label: d.points[0].label,
-                    nonce: Date.now()
-                  },
-                  {priority: 'event'}
-                );
-              }
-              return false;
-            });
-          }
-        "
+  function(el, x) {
+    el.on('plotly_sunburstclick', function(d) {
+      var point = d.points && d.points[0];
+      if (!point) return false;
+
+      var mode = document.querySelector(
+        '#sunburst_inner_ring_behavior input:checked'
+      );
+
+      var trace = el.data[point.curveNumber || 0];
+      var nodeId = point.id;
+      if (nodeId == null && trace && trace.ids) {
+        nodeId = trace.ids[point.pointNumber];
+      }
+
+      var hasChildren = nodeId != null &&
+        trace && trace.parents &&
+        trace.parents.some(function(parentId) {
+          return String(parentId) === String(nodeId);
+        });
+
+      if (mode && mode.value === 'drill' && hasChildren) {
+        return true;
+      }
+
+      Shiny.setInputValue(
+        'sunburst_node_click',
+        {label: point.label, nonce: Date.now()},
+        {priority: 'event'}
+      );
+      return false;
+    });
+  }
+  "
       )
       
     } else {
@@ -586,19 +604,12 @@ server <- function(input, output, session) {
   })
   
 
-  # This function sets the selected nodes
-  observeEvent(
-    list(
-      input$sunburst_node_click,
-      event_data("plotly_click")
-    ),
-    {
-    
+  # Update the selected nodes after a Sunburst or Constellation selection click
+  handle_cell_type_click <- function() {
     req(rv_anno())
     data <- rv_anno()
     constellation <- data$constellation
     
-    # Register the event
     d <- NULL
     
     if (input$plot_selection != "Sunburst") {
@@ -607,12 +618,9 @@ server <- function(input, output, session) {
     }
     
     if (input$plot_selection == "Sunburst") {
-      
       req(input$sunburst_node_click$label)
       clicked_node_id <- input$sunburst_node_click$label
-      
     } else {
-      
       dat <- constellation[[input$hierarchy_level]]$x$layoutAttrs[[1]]$annotations
       xval <- as.numeric(lapply(dat, function(x) x$x))
       yval <- as.numeric(lapply(dat, function(x) x$y))
@@ -638,7 +646,6 @@ server <- function(input, output, session) {
     current_selected <- rv_sunburst$selected_nodes[[which_list]]
     
     if (input$plot_selection == "Sunburst") {
-      
       target_level <- input$hierarchy_level
       target_column <- paste0(target_level, "_label")
       cluster_info <- data$cluster_info
@@ -652,13 +659,10 @@ server <- function(input, output, session) {
       )
       
       if (identical(clicked_node_id, "all")) {
-        
         clicked_descendants <- unique(
           as.character(cluster_info[[target_column]])
         )
-        
       } else {
-        
         clicked_columns <- hierarchy_columns[
           vapply(
             hierarchy_columns,
@@ -671,11 +675,8 @@ server <- function(input, output, session) {
         ]
         
         if (length(clicked_columns) == 0) {
-          
           clicked_descendants <- character(0)
-          
         } else {
-          
           descendant_rows <- Reduce(
             `|`,
             lapply(
@@ -688,30 +689,24 @@ server <- function(input, output, session) {
           )
           
           clicked_descendants <- unique(
-            as.character(
-              cluster_info[descendant_rows, target_column]
-            )
+            as.character(cluster_info[descendant_rows, target_column])
           )
         }
       }
       
       clicked_descendants <- clicked_descendants[
-        !is.na(clicked_descendants) &
-          nzchar(clicked_descendants)
+        !is.na(clicked_descendants) & nzchar(clicked_descendants)
       ]
       
       if (
         length(clicked_descendants) > 0 &&
         all(clicked_descendants %in% current_selected)
       ) {
-        
-        # Clicking an already selected branch removes all its descendants
+        # Clicking an already selected branch removes its descendants
         selected_nodes <- current_selected[
           !(current_selected %in% clicked_descendants)
         ]
-        
       } else {
-        
         # Add missing descendants in their cluster_info order
         selected_nodes <- c(
           current_selected,
@@ -720,19 +715,12 @@ server <- function(input, output, session) {
           ]
         )
       }
-      
     } else {
-      
       # Preserve the existing Constellation behavior
       if (clicked_node_id %in% current_selected) {
-        selected_nodes <- setdiff(
-          current_selected,
-          clicked_node_id
-        )
+        selected_nodes <- setdiff(current_selected, clicked_node_id)
       } else {
-        selected_nodes <- unique(
-          c(current_selected, clicked_node_id)
-        )
+        selected_nodes <- unique(c(current_selected, clicked_node_id))
       }
     }
     
@@ -744,20 +732,25 @@ server <- function(input, output, session) {
     }
     
     all_types <- unique(
-      as.character(
-        data$cluster_info[[paste0(level, "_label")]]
-      )
+      as.character(data$cluster_info[[paste0(level, "_label")]])
     )
     
-    selected_nodes <- selected_nodes[
-      selected_nodes %in% all_types
-    ]
+    selected_nodes <- selected_nodes[selected_nodes %in% all_types]
     
     rv_sunburst$selected_nodes[[which_list]] <- selected_nodes
-    
-    },
-    ignoreInit = TRUE
-  )
+  }
+  
+  observeEvent(input$sunburst_node_click, {
+    if (identical(input$plot_selection, "Sunburst")) {
+      handle_cell_type_click()
+    }
+  }, ignoreInit = TRUE)
+  
+  observeEvent(event_data("plotly_click"), {
+    if (identical(input$plot_selection, "Constellation")) {
+      handle_cell_type_click()
+    }
+  }, ignoreInit = TRUE)
   
   ## FOREGROUND FILTERS
   

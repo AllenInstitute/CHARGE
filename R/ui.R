@@ -334,6 +334,19 @@ ui <- function(request) {
             column(5,
                    selectInput("hierarchy_level", "Choose level of hierarchy:", choices = NULL),
                    uiOutput("plot_type_selection"),
+                   conditionalPanel(
+                     condition = "input.plot_selection == 'Sunburst'",
+                     radioButtons(
+                       inputId = "sunburst_inner_ring_behavior",
+                       label = "Choose inner ring selection behaviour",
+                       choices = c(
+                         "Select all children" = "select",
+                         "Show only children" = "drill"
+                       ),
+                       selected = "select",
+                       inline = TRUE
+                     )
+                   ),
                    selectInput(
                      inputId = "background_type",
                      label = "Choose analysis type:",
